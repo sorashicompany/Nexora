@@ -1,0 +1,9 @@
+# Cloudflare Tunnel configuration
+# Replace the hostname with your real domain/subdomain.
+tunnel: YOUR_TUNNEL_ID
+credentials-file: /etc/cloudflared/YOUR_TUNNEL_ID.json
+
+ingress:
+  - hostname: chat.example.com
+    service: http://127.0.0.1:5000
+  - service: http_status:404

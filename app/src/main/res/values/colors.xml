@@ -1,0 +1,6 @@
+<resources>
+    <color name="nexora_bg">#050722</color>
+    <color name="nexora_surface">#0B0D2A</color>
+    <color name="nexora_accent">#6C4BFF</color>
+    <color name="nexora_text">#FFFFFF</color>
+</resources>

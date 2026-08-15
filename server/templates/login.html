@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<title>Messenger — Вход</title>
+<link rel="stylesheet" href="/static/style.css">
+<link rel="icon" type="image/svg+xml" href="/static/nexora-mark.svg">
+</head>
+<body class="login">
+<div class="box">
+  <a class="brand login-brand" href="/" aria-label="Nexora">
+    <img class="brand-logo" src="/static/nexora-logo.svg" alt="Nexora">
+    <span>Защищённый музыкальный мессенджер</span>
+  </a>
+  <h1>С возвращением</h1>
+  <p class="lead">Войдите, чтобы продолжить общение.</p>
+  {% if error %}<div class="err" role="alert">{{ error }}</div>{% endif %}
+  <form method="post" autocomplete="on">
+    <div class="field">
+      <label for="nickname">Никнейм</label>
+      <input id="nickname" name="nickname" placeholder="Ваш никнейм" autocomplete="username" required autofocus>
+    </div>
+    <div class="field">
+      <label for="password">Пароль</label>
+      <input id="password" name="password" type="password" placeholder="Ваш пароль" autocomplete="current-password" required>
+    </div>
+    <button class="primary" type="submit">Войти</button>
+  </form>
+  <p class="hint">Регистрация доступна через Telegram-бота.</p>
+</div>
+<script>
+(function(){
+  const root=document.documentElement;
+  root.dataset.theme=localStorage.theme||'dark';
+  const setDevice=()=>{
+    const w=window.innerWidth,h=window.innerHeight,dpr=window.devicePixelRatio||1;
+    root.style.setProperty('--device-vw',w+'px');
+    root.style.setProperty('--device-vh',h+'px');
+    root.style.setProperty('--device-dpr',dpr);
+    root.dataset.device=w<681?'mobile':w<901?'tablet':'desktop';
+  };
+  setDevice(); addEventListener('resize',setDevice,{passive:true});
+})();
+</script>
+</body>
+</html>

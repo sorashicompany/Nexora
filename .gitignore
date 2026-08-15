@@ -1,0 +1,30 @@
+.gradle/
+local.properties
+.idea/
+*.iml
+build/
+app/build/
+server/.env
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Android / Gradle
+.gradle/
+build/
+app/build/
+local.properties
+
+# IDE
+.idea/
+*.iml
+
+# Termux / local SDK
+android-sdk/

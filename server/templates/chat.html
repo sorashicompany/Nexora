@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<title>NEXORA — {{ nick }}</title>
+<link rel="preload" href="/static/style.css?v=2" as="style">
+<link rel="stylesheet" href="/static/style.css?v=2">
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+</head>
+<body>
+<svg class="sprite" aria-hidden="true">
+<symbol id="i-logo" viewBox="0 0 24 24"><path d="M5 4v16M19 4v16M5 4l7 8 7-8M5 20l7-8 7 8"/></symbol>
+<symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H9l-5 4v-14.5Z"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 5 5"/></symbol>
+<symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></symbol>
+<symbol id="i-settings" viewBox="0 0 24 24"><path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z"/><path d="m19.4 15 .1.1-1.5 2.6-.2-.1a2 2 0 0 0-2.1.1l-.2.1a2 2 0 0 0-1 1.8v.2h-3v-.2a2 2 0 0 0-1-1.8l-.2-.1a2 2 0 0 0-2.1-.1l-.2.1-1.5-2.6.1-.1a2 2 0 0 0 1-1.8v-.3a2 2 0 0 0-1-1.8l-.1-.1 1.5-2.6.2.1a2 2 0 0 0 2.1-.1l.2-.1a2 2 0 0 0 1-1.8V6h3v.2a2 2 0 0 0 1 1.8l.2.1a2 2 0 0 0 2.1.1l.2-.1 1.5 2.6-.1.1a2 2 0 0 0-1 1.8v.3a2 2 0 0 0 1 1.8Z"/></symbol>
+<symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
+<symbol id="i-moon" viewBox="0 0 24 24"><path d="M20.5 14.8A8.5 8.5 0 0 1 9.2 3.5 8.5 8.5 0 1 0 20.5 14.8Z"/></symbol>
+<symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+<symbol id="i-send" viewBox="0 0 24 24"><path d="m21 3-7.4 18-3.8-7.8L2 9.4 21 3Z"/><path d="M9.8 13.2 21 3"/></symbol>
+<symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/></symbol>
+<symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+<symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8" cy="9" r="1.5"/><path d="m4 17 5-5 4 4 2-2 5 5"/></symbol>
+<symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V5l10-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="16" cy="16" r="3"/></symbol>
+<symbol id="i-youtube" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="4"/><path d="m10 9 5 3-5 3V9Z" fill="currentColor" stroke="none"/></symbol>
+<symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1"/><path d="M14 11a5 5 0 0 0-7.1-.1l-2 2a5 5 0 0 0 7.1 7.1l1.1-1.1"/></symbol>
+<symbol id="i-logout" viewBox="0 0 24 24"><path d="M10 5H5v14h5M14 8l4 4-4 4M8 12h10"/></symbol>
+</svg>
+
+<div class="app-shell">
+  <div class="mobile-backdrop" id="backdrop"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-top">
+      <a class="brand" href="/" aria-label="Nexora"><img class="brand-logo" src="/static/nexora-logo.svg" alt="Nexora"></a>
+      <button class="icon-btn mobile-close" id="closeSidebar" aria-label="Закрыть"><svg class="icon"><use href="#i-close"/></svg></button>
+    </div>
+
+    <button class="profile-card" id="openProfile">
+      <div class="avatar avatar-lg" id="meAvatar"></div>
+      <div class="profile-copy"><b>{{ nick }}</b><span><i class="presence-dot"></i>В сети</span></div>
+      <svg class="icon muted"><use href="#i-settings"/></svg>
+    </button>
+
+    <div class="search-wrap"><svg class="icon"><use href="#i-search"/></svg><input id="search" placeholder="Поиск контактов" autocomplete="off"></div>
+
+    <nav class="nav-tabs">
+      <button class="nav-item active" id="publicTab"><svg class="icon"><use href="#i-chat"/></svg><span>Общий чат</span><span class="badge hidden" id="publicUnread">0</span></button>
+    </nav>
+
+    <div class="section-title"><span>Контакты</span><span id="onlineCount">0</span></div>
+    <ul class="contacts" id="users"></ul>
+    <div class="no-results hidden" id="noResults">Ничего не найдено</div>
+
+    <div class="music-hub">
+      <div class="section-title"><span>Музыка</span><span class="muted">creator hub</span></div>
+      <button class="nav-item" id="openMusicProfile"><svg class="icon"><use href="#i-music"/></svg><span>Мой музыкальный профиль</span></button>
+    </div>
+    <div class="sidebar-bottom">
+      <button class="bottom-action" id="notifyBtn"><svg class="icon"><use href="#i-bell"/></svg><span>Уведомления</span><small id="notifyState">вкл.</small></button>
+      <button class="bottom-action" id="theme"><svg class="icon" id="themeIcon"><use href="#i-moon"/></svg><span>Тема</span><small>переключить</small></button>
+      <a class="bottom-action danger" href="/logout"><svg class="icon"><use href="#i-logout"/></svg><span>Выйти</span></a>
+    </div>
+  </aside>
+
+  <main class="chat-panel">
+    <header class="chat-head">
+      <div class="chat-title">
+        <button class="icon-btn mobile-menu" id="menu" aria-label="Открыть меню"><svg class="icon"><use href="#i-menu"/></svg></button>
+        <div class="avatar" id="chatAvatar"></div>
+        <div class="title-copy"><h1 id="chatName">Общий чат</h1><span id="chatSub">публичный канал · все участники</span></div>
+      </div>
+      <div class="head-actions"><button class="icon-btn" id="headSearch" aria-label="Поиск"><svg class="icon"><use href="#i-search"/></svg></button><button class="icon-btn" id="headBell" aria-label="Уведомления"><svg class="icon"><use href="#i-bell"/></svg><i class="notif-dot hidden"></i></button></div>
+    </header>
+
+    <section class="messages" id="msgs">
+      <div class="welcome" id="empty"><div class="welcome-orb"><svg class="icon"><use href="#i-chat"/></svg></div><h2>Добро пожаловать, {{ nick }}</h2><p>Общайтесь, находите контакты и оставайтесь на связи.</p></div>
+    </section>
+
+    <div class="typing hidden" id="typing"><span></span><span></span><span></span><em>печатает…</em></div>
+
+    <form class="composer" id="form" autocomplete="off">
+      <button type="button" class="attach" id="attach" aria-label="Вложение"><svg class="icon"><use href="#i-image"/></svg></button>
+      <input id="input" maxlength="4000" placeholder="Напишите сообщение…" aria-label="Сообщение" autocomplete="off">
+      <button class="send" type="submit" aria-label="Отправить"><svg class="icon"><use href="#i-send"/></svg></button>
+    </form>
+  </main>
+</div>
+
+<div class="modal hidden" id="profileModal" role="dialog" aria-modal="true" aria-labelledby="profileTitle">
+  <div class="modal-card profile-modal wide-modal">
+    <button class="modal-close icon-btn" data-close="profileModal"><svg class="icon"><use href="#i-close"/></svg></button>
+    <div class="profile-hero"><div class="avatar avatar-xl" id="profileAvatar"></div><div><h2 id="profileTitle">{{ nick }}</h2><p><i class="presence-dot"></i> В сети · <span id="profileRoleLabel">Исполнитель</span></p></div></div>
+    <div class="role-switch" id="roleSwitch"><button type="button" data-role="artist">🎤 Исполнитель</button><button type="button" data-role="beatmaker">🎚️ Битмейкер</button></div>
+    <label class="profile-label">О себе<textarea id="profileBio" maxlength="1000" placeholder="Жанр, город, что создаёшь…"></textarea></label>
+    <div class="profile-grid"><div><span>Имя пользователя</span><b id="profileNick">@{{ nick }}</b></div><div><span>Устройство</span><b id="deviceInfo">—</b></div><div><span>Масштаб</span><b id="dprInfo">—</b></div><div><span>Профиль</span><b id="profileRoleValue">Исполнитель</b></div></div>
+    <div class="integrations"><div class="integration-title"><div><h3>Музыкальные связи</h3><p>Покажи аудитории, где тебя слушать и смотреть.</p></div><span class="integration-count" id="integrationCount">0/6</span></div>
+      <div class="integration-grid">
+        <label class="integration-card"><span class="service-icon spotify">S</span><span><b>Spotify</b><small>Профиль / артист</small></span><input id="spotifyUrl" placeholder="https://open.spotify.com/..." inputmode="url"></label>
+        <label class="integration-card"><span class="service-icon apple"></span><span><b>Apple Music</b><small>Artist / профиль</small></span><input id="appleMusicUrl" placeholder="https://music.apple.com/..." inputmode="url"></label>
+        <label class="integration-card"><span class="service-icon youtube">▶</span><span><b>YouTube</b><small>Канал / музыка</small></span><input id="youtubeUrl" placeholder="https://youtube.com/@..." inputmode="url"></label>
+        <label class="integration-card"><span class="service-icon tiktok">♪</span><span><b>TikTok</b><small>Профиль автора</small></span><input id="tiktokUrl" placeholder="https://www.tiktok.com/@..." inputmode="url"></label>
+        <label class="integration-card"><span class="service-icon soundcloud">SC</span><span><b>SoundCloud</b><small>Профиль</small></span><input id="soundcloudUrl" placeholder="https://soundcloud.com/..." inputmode="url"></label>
+        <div class="integration-card beatchain-card"><span class="service-icon beatchain">BC</span><span><b>BeatChain</b><small>Маркетплейс битов</small></span><input id="beatchainUrl" placeholder="https://beatchain.io/..." inputmode="url"><a href="https://beatchain.io/" target="_blank" rel="noopener">Открыть BeatChain ↗</a></div>
+      </div>
+    </div>
+    <div class="profile-actions"><button class="bottom-action" id="notifyBtn" type="button"><svg class="icon"><use href="#i-bell"/></svg>Уведомления <small id="notifyState">выкл.</small></button><button class="primary-action" id="saveProfile" type="button">Сохранить профиль</button></div>
+  </div>
+</div>
+<div class="toast-stack" id="toasts"></div>
+
+<script>
+const ME={{ nick|tojson }};
+const root=document.documentElement;
+const $=id=>document.getElementById(id);
+let socket=null, socketPromise=null, chat="public", loaded={}, contacts=[], unread={}, typingTimer;
+const msgs=$("msgs"), users=$("users"), input=$("input"), empty=$("empty");
+
+function setDeviceMetrics(){
+  const w=innerWidth,h=innerHeight,dpr=devicePixelRatio||1;
+  root.style.setProperty("--device-vw",w+"px");root.style.setProperty("--device-vh",h+"px");root.style.setProperty("--device-dpr",dpr);
+  root.dataset.device=w<681?"mobile":w<980?"tablet":"desktop";
+  $("deviceInfo").textContent=root.dataset.device.toUpperCase();$("dprInfo").textContent=dpr.toFixed(2)+"×";
+}
+function setTheme(t){root.dataset.theme=t;localStorage.theme=t;$("themeIcon").innerHTML=`<use href="#i-${t==="dark"?"sun":"moon"}"/>`;}
+setTheme(localStorage.theme||"dark");setDeviceMetrics();
+let profileData={{ profile_type: {{ (profile.get("profile_type") or "artist")|tojson }}, bio: {{ (profile.get("bio") or "")|tojson }}, spotify_url: {{ (profile.get("spotify_url") or "")|tojson }}, apple_music_url: {{ (profile.get("apple_music_url") or "")|tojson }}, youtube_url: {{ (profile.get("youtube_url") or "")|tojson }}, tiktok_url: {{ (profile.get("tiktok_url") or "")|tojson }}, soundcloud_url: {{ (profile.get("soundcloud_url") or "")|tojson }}, beatchain_url: {{ (profile.get("beatchain_url") or "")|tojson }} }};
+function roleLabel(r){return r==="beatmaker"?"Битмейкер":"Исполнитель";}
+function fillProfile(){$("profileBio").value=profileData.bio||"";$("spotifyUrl").value=profileData.spotify_url||"";$("appleMusicUrl").value=profileData.apple_music_url||"";$("youtubeUrl").value=profileData.youtube_url||"";$("tiktokUrl").value=profileData.tiktok_url||"";$("soundcloudUrl").value=profileData.soundcloud_url||"";$("beatchainUrl").value=profileData.beatchain_url||"";document.querySelectorAll("#roleSwitch button").forEach(b=>b.classList.toggle("active",b.dataset.role===profileData.profile_type));$("profileRoleLabel").textContent=roleLabel(profileData.profile_type);$("profileRoleValue").textContent=roleLabel(profileData.profile_type);document.querySelector(".beatchain-card").classList.toggle("beatmaker-focus",profileData.profile_type==="beatmaker");updateIntegrationCount();}
+function updateIntegrationCount(){const ids=["spotifyUrl","appleMusicUrl","youtubeUrl","tiktokUrl","soundcloudUrl","beatchainUrl"];$("integrationCount").textContent=ids.filter(id=>$(id).value.trim()).length+"/6";}
+fillProfile();
+addEventListener("resize",setDeviceMetrics,{passive:true});
+addEventListener("orientationchange",()=>setTimeout(setDeviceMetrics,100),{passive:true});
+
+const colors=["#ef4444","#f97316","#eab308","#22c55e","#14b8a6","#06b6d4","#3b82f6","#6366f1","#8b5cf6","#d946ef","#ec4899"];
+const color=n=>colors[Array.from(n).reduce((a,x)=>a+x.codePointAt(0),0)%colors.length];
+const initials=n=>Array.from(n).slice(0,2).join("").toUpperCase();
+const esc=t=>{const d=document.createElement("div");d.textContent=t;return d.innerHTML};
+function avatar(el,name,col=color(name)){el.textContent=initials(name);el.style.background=`linear-gradient(135deg,${col},#111827)`;}
+function toast(text){const el=document.createElement("div");el.className="toast";el.textContent=text;$("toasts").appendChild(el);setTimeout(()=>el.remove(),2800);}
+function closeSidebar(){$("sidebar").classList.remove("open");$("backdrop").classList.remove("show");}
+function openSidebar(){if(innerWidth<681){$("sidebar").classList.add("open");$("backdrop").classList.add("show");}}
+function scrollBottom(smooth=true){msgs.scrollTo({top:msgs.scrollHeight,behavior:smooth?"smooth":"auto"});}
+function clearMessages(){msgs.innerHTML="";}
+function hideEmpty(){if(empty?.isConnected)empty.remove();}
+function addMessage(user,text,time="",col=color(user),hist=false){
+  hideEmpty();
+  const row=document.createElement("article");row.className="message"+(user===ME?" mine":"");
+  row.innerHTML=`<div class="avatar">${esc(initials(user))}</div><div class="message-body"><div class="message-meta"><b>${esc(user)}</b><time>${esc(time||"")}</time></div><div class="bubble">${esc(text)}<span class="ticks">${user===ME?'<svg class="icon"><use href="#i-check"/></svg>':''}</span></div></div>`;
+  row.querySelector(".avatar").style.background=`linear-gradient(135deg,${col},#111827)`;msgs.appendChild(row);
+  if(!hist)scrollBottom(true);
+}
+function systemMessage(text){hideEmpty();const el=document.createElement("div");el.className="system-message";el.textContent=text;msgs.appendChild(el);scrollBottom(true);}
+function renderContacts(filter=""){
+  const q=filter.trim().toLowerCase();users.innerHTML="";
+  const list=contacts.filter(u=>u.name!==ME&&u.name.toLowerCase().includes(q));
+  $("noResults").classList.toggle("hidden",!!list.length);$("onlineCount").textContent=contacts.filter(u=>u.name!==ME).length;
+  list.forEach(u=>{const li=document.createElement("li");li.className="contact"+(chat===u.name?" active":"");li.dataset.name=u.name;li.innerHTML=`<div class="avatar">${esc(initials(u.name))}</div><div class="contact-main"><b>${esc(u.name)}</b><span><i class="presence-dot"></i>В сети</span></div><span class="unread ${unread[u.name]?"":"hidden"}">${unread[u.name]||0}</span>`;li.querySelector(".avatar").style.background=`linear-gradient(135deg,${u.color},#111827)`;li.onclick=()=>toPrivate(u.name,u.color);users.appendChild(li);});
+}
+function toPublic(){
+  chat="public";$("chatName").textContent="Общий чат";$("chatSub").textContent="публичный канал · все участники";$("chatAvatar").innerHTML='<svg class="icon"><use href="#i-chat"/></svg>';$("chatAvatar").style.background="linear-gradient(135deg,var(--accent),var(--accent-2))";$("publicTab").classList.add("active");clearMessages();delete unread.public;$("publicUnread").classList.add("hidden");renderContacts($("search").value);closeSidebar();
+  ensureSocket().then(()=>socket.emit("history_public"));
+}
+function toPrivate(name,col){
+  chat=name;$("chatName").textContent=name;$("chatSub").textContent="личный чат · в сети";avatar($("chatAvatar"),name,col);$("publicTab").classList.remove("active");clearMessages();unread[name]=0;renderContacts($("search").value);closeSidebar();
+  if(!loaded[name])ensureSocket().then(()=>socket.emit("history_private",{user:name})).then(()=>loaded[name]=true);
+}
+
+avatar($("meAvatar"),ME);avatar($("profileAvatar"),ME);$("chatAvatar").innerHTML='<svg class="icon"><use href="#i-chat"/></svg>';$("chatAvatar").style.background="linear-gradient(135deg,var(--accent),var(--accent-2))";
+
+function bindSocket(s){
+  s.on("system",d=>{if(chat==="public")systemMessage(d.text);toast(d.text);});
+  s.on("msg",d=>{if(chat==="public")addMessage(d.user,d.text,d.time,d.color,d.hist);else if(d.user!==ME){unread.public=(unread.public||0)+1;$("publicUnread").textContent=unread.public;$("publicUnread").classList.remove("hidden");showNotification(d.user,d.text);}});
+  s.on("private",d=>{const other=d.user===ME?d.to:d.user;if(chat===other)addMessage(d.user,d.text,d.time,d.color,d.hist);else if(d.user!==ME){unread[other]=(unread[other]||0)+1;renderContacts($("search").value);showNotification(d.user,d.text);}});
+  s.on("users",list=>{contacts=list;renderContacts($("search").value);});
+  s.on("typing",d=>{if(d.user===chat){$("typing").classList.remove("hidden");clearTimeout(typingTimer);typingTimer=setTimeout(()=>$("typing").classList.add("hidden"),1800);}});
+  s.on("connect",()=>{toast("Соединение установлено");if(!loaded.public){loaded.public=true;s.emit("history_public");}});
+  s.on("disconnect",()=>toast("Соединение потеряно — переподключаемся…"));
+}
+function loadSocketIO(){
+  if(socketPromise)return socketPromise;
+  socketPromise=new Promise((resolve,reject)=>{
+    const script=document.createElement("script");
+    script.src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js";
+    script.crossOrigin="anonymous";script.async=true;
+    script.onload=()=>{try{socket=io({transports:["websocket","polling"],upgrade:true,reconnection:true,reconnectionAttempts:Infinity,reconnectionDelay:500,reconnectionDelayMax:4000});bindSocket(socket);resolve(socket);}catch(e){reject(e);}};
+    script.onerror=()=>reject(new Error("Socket.IO не загрузился"));
+    document.head.appendChild(script);
+  });
+  return socketPromise;
+}
+function ensureSocket(){return loadSocketIO().catch(()=>{toast("Не удалось подключиться к серверу");throw new Error("socket unavailable")});}
+
+document.querySelectorAll("#roleSwitch button").forEach(b=>b.onclick=()=>{profileData.profile_type=b.dataset.role;fillProfile();});
+["spotifyUrl","appleMusicUrl","youtubeUrl","tiktokUrl","soundcloudUrl","beatchainUrl"].forEach(id=>$(id).addEventListener("input",updateIntegrationCount));
+async function openProfile(){try{const r=await fetch("/api/profile");if(r.ok){profileData=await r.json();fillProfile();}}catch{}$("profileModal").classList.remove("hidden");}
+$("saveProfile").onclick=async()=>{const payload={profile_type:profileData.profile_type,bio:$('profileBio').value,spotify_url:$('spotifyUrl').value,apple_music_url:$('appleMusicUrl').value,youtube_url:$('youtubeUrl').value,tiktok_url:$('tiktokUrl').value,soundcloud_url:$('soundcloudUrl').value,beatchain_url:$('beatchainUrl').value};const r=await fetch("/api/profile",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});if(r.ok){profileData=await r.json();fillProfile();$("profileModal").classList.add("hidden");toast("Музыкальный профиль сохранён");}else toast("Не удалось сохранить профиль");};
+$("openProfile").onclick=openProfile;$("openMusicProfile").onclick=openProfile;
+$("form").onsubmit=async e=>{e.preventDefault();const t=input.value.trim();if(!t)return;const target=chat;input.value="";input.focus();try{const s=await ensureSocket();target==="public"?s.emit("public",{text:t}):s.emit("private",{text:t,to:target});if(target!=="public")s.emit("typing",{to:target,active:false});}catch{input.value=t;}};
+input.addEventListener("input",()=>{if(chat!=="public"&&socket)socket.emit("typing",{to:chat,active:!!input.value.trim()});});
+$("search").oninput=e=>renderContacts(e.target.value);$("headSearch").onclick=()=>{$("search").focus();openSidebar();};$("menu").onclick=openSidebar;$("closeSidebar").onclick=closeSidebar;$("backdrop").onclick=closeSidebar;$("publicTab").onclick=toPublic;$("theme").onclick=()=>setTheme(root.dataset.theme==="dark"?"light":"dark");$("headBell").onclick=()=>$("notifyBtn").click();
+document.querySelectorAll("[data-close]").forEach(b=>b.onclick=()=>$(b.dataset.close).classList.add("hidden"));
+$("attach").onclick=()=>toast("Вложения подготовлены для следующего обновления");
+let notifications=localStorage.notify==="1";
+function updateNotify(){$("notifyState").textContent=notifications?"вкл.":"выкл.";}
+async function showNotification(title,body){if(!notifications||document.visibilityState!=="hidden")return;if("Notification"in window&&Notification.permission==="granted")new Notification(title,{body});}
+$("notifyBtn").onclick=async()=>{if(!("Notification"in window)){toast("Ваш браузер не поддерживает уведомления");return;}if(Notification.permission==="denied"){toast("Уведомления заблокированы в настройках браузера");return;}if(Notification.permission!=="granted")await Notification.requestPermission();notifications=Notification.permission==="granted";localStorage.notify=notifications?"1":"0";updateNotify();toast(notifications?"Уведомления включены":"Уведомления выключены");};updateNotify();
+
+// First paint is independent from the realtime client. Load Socket.IO only after the browser has painted the UI.
+const startRealtime=()=>ensureSocket().catch(()=>{});
+if("requestIdleCallback"in window)requestIdleCallback(startRealtime,{timeout:1200});else setTimeout(startRealtime,120);
+</script>
+</body>
+</html>
