@@ -6,9 +6,7 @@ android {
     namespace 'com.nexora.music'
     compileSdk 35
 
-    buildFeatures {
-        buildConfig true
-    }
+    buildFeatures { buildConfig true }
 
     defaultConfig {
         applicationId 'com.nexora.music'
@@ -17,10 +15,10 @@ android {
         versionCode 1
         versionName '1.0.0'
 
-        // Supabase publishable credentials are safe for client apps.
-        // Authorization is enforced by Supabase RLS; never put a service_role/secret key here.
         buildConfigField 'String', 'SUPABASE_URL', '"https://xvmcsqpfcabhblaweaix.supabase.co"'
         buildConfigField 'String', 'SUPABASE_PUBLISHABLE_KEY', '"sb_publishable_BRUOkhD4ZFOQyLm5y0-HQg_LoDVyMND"'
+        // Replace with the public URL of the deployed nexora-api Worker.
+        buildConfigField 'String', 'NEXORA_API_URL', '"https://REPLACE_WITH_NEXORA_WORKER_URL"'
     }
 
     buildTypes {
