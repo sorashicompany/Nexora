@@ -2,269 +2,328 @@ package com.nexora.music;
 
 import android.app.Activity;
 import android.content.Context;
-import android.content.Intent;
-import android.content.SharedPreferences;
 import android.graphics.Color;
-import android.net.Uri;
-import android.os.Build;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
-import android.view.Window;
-import android.webkit.CookieManager;
-import android.webkit.ValueCallback;
-import android.webkit.WebChromeClient;
-import android.webkit.WebResourceRequest;
-import android.webkit.WebSettings;
-import android.webkit.WebView;
-import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 public class MainActivity extends Activity {
-    private static final String PREFS = "nexora_prefs";
-    private static final String KEY_SERVER = "server_url";
-    private static final String DEFAULT_SERVER = "http://127.0.0.1:5000";
+    private static final int BG = Color.rgb(8, 9, 15);
+    private static final int SURFACE = Color.rgb(18, 20, 29);
+    private static final int SURFACE_2 = Color.rgb(25, 27, 38);
+    private static final int TEXT = Color.rgb(246, 247, 251);
+    private static final int MUTED = Color.rgb(154, 158, 172);
+    private static final int ACCENT = Color.rgb(125, 92, 255);
 
-    private WebView webView;
-    private TextView status;
-    private SharedPreferences prefs;
     private SupabaseClient supabase;
-    private ValueCallback<Uri[]> fileCallback;
-    private static final int FILE_PICKER = 1001;
+    private LinearLayout content;
+    private TextView title;
+    private TextView account;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        requestWindowFeature(Window.FEATURE_NO_TITLE);
-        getWindow().setStatusBarColor(Color.rgb(5, 7, 34));
-        getWindow().setNavigationBarColor(Color.rgb(5, 7, 34));
-
-        prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+        getWindow().setStatusBarColor(BG);
+        getWindow().setNavigationBarColor(BG);
         supabase = new SupabaseClient(this);
-        buildUi();
-        configureWebView();
-        loadServer();
+        buildShell();
+        showHome();
     }
 
-    private void buildUi() {
+    private void buildShell() {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(Color.rgb(5, 7, 34));
+        root.setBackgroundColor(BG);
 
-        LinearLayout toolbar = new LinearLayout(this);
-        toolbar.setGravity(Gravity.CENTER_VERTICAL);
-        toolbar.setPadding(dp(10), dp(5), dp(8), dp(5));
-        toolbar.setBackgroundColor(Color.rgb(7, 9, 40));
-        toolbar.setLayoutParams(new LinearLayout.LayoutParams(-1, dp(58)));
+        LinearLayout top = new LinearLayout(this);
+        top.setGravity(Gravity.CENTER_VERTICAL);
+        top.setPadding(dp(18), dp(12), dp(14), dp(8));
 
         ImageView logo = new ImageView(this);
-        logo.setImageResource(com.nexora.music.R.drawable.nexora_mark);
+        logo.setImageResource(R.drawable.nexora_mark);
         logo.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
-        toolbar.addView(logo, new LinearLayout.LayoutParams(dp(42), dp(42)));
+        top.addView(logo, new LinearLayout.LayoutParams(dp(42), dp(42)));
 
-        TextView title = new TextView(this);
-        title.setText("Nexora");
-        title.setTextColor(Color.WHITE);
-        title.setTextSize(18);
-        title.setTypeface(null, android.graphics.Typeface.BOLD);
-        title.setPadding(dp(8), 0, 0, 0);
-        toolbar.addView(title, new LinearLayout.LayoutParams(0, -2, 1));
+        LinearLayout brand = new LinearLayout(this);
+        brand.setOrientation(LinearLayout.VERTICAL);
+        brand.setPadding(dp(10), 0, 0, 0);
+        title = label("Nexora", 19, TEXT, true);
+        TextView subtitle = label("music & community", 11, MUTED, false);
+        brand.addView(title);
+        brand.addView(subtitle);
+        top.addView(brand, new LinearLayout.LayoutParams(0, -2, 1));
 
-        status = new TextView(this);
-        status.setText("●");
-        status.setTextColor(Color.rgb(105, 85, 255));
-        status.setTextSize(14);
-        status.setPadding(dp(8), 0, dp(4), 0);
-        toolbar.addView(status, new LinearLayout.LayoutParams(-2, -2));
+        account = label(supabase.isSignedIn() ? "●" : "○", 22, supabase.isSignedIn() ? ACCENT : MUTED, true);
+        account.setGravity(Gravity.CENTER);
+        account.setPadding(dp(10), 0, 0, 0);
+        account.setOnClickListener(v -> showAccountDialog());
+        top.addView(account, new LinearLayout.LayoutParams(dp(42), dp(42)));
+        root.addView(top);
 
-        Button account = new Button(this);
-        account.setText(supabase.isSignedIn() ? "Аккаунт" : "Войти");
-        account.setOnClickListener(v -> showAccountDialog(account));
-        toolbar.addView(account, new LinearLayout.LayoutParams(-2, dp(44)));
+        content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        ScrollView scroll = new ScrollView(this);
+        scroll.setFillViewport(true);
+        scroll.addView(content);
+        root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
 
-        ImageButton settings = new ImageButton(this);
-        settings.setImageResource(android.R.drawable.ic_menu_preferences);
-        settings.setColorFilter(Color.WHITE);
-        settings.setBackgroundColor(Color.TRANSPARENT);
-        settings.setContentDescription("Настройки сервера");
-        settings.setOnClickListener(v -> showServerDialog());
-        toolbar.addView(settings, new LinearLayout.LayoutParams(dp(48), dp(48)));
-
-        root.addView(toolbar);
-
-        webView = new WebView(this);
-        root.addView(webView, new LinearLayout.LayoutParams(-1, 0, 1));
+        root.addView(buildNavigation());
         setContentView(root);
     }
 
-    private void showAccountDialog(Button account) {
+    private LinearLayout buildNavigation() {
+        LinearLayout nav = new LinearLayout(this);
+        nav.setGravity(Gravity.CENTER);
+        nav.setPadding(dp(8), dp(7), dp(8), dp(9));
+        nav.setBackgroundColor(Color.rgb(13, 14, 22));
+
+        nav.addView(navItem("Главная", "⌂", v -> showHome()), weightParams());
+        nav.addView(navItem("Музыка", "♫", v -> showMusic()), weightParams());
+        nav.addView(navItem("Создать", "+", v -> showCreate()), weightParams());
+        nav.addView(navItem("Профиль", "●", v -> showProfile()), weightParams());
+        return nav;
+    }
+
+    private LinearLayout.LayoutParams weightParams() {
+        return new LinearLayout.LayoutParams(0, dp(58), 1);
+    }
+
+    private View navItem(String text, String icon, View.OnClickListener listener) {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setGravity(Gravity.CENTER);
+        box.setOnClickListener(listener);
+        TextView i = label(icon, 21, TEXT, true);
+        TextView t = label(text, 10, MUTED, false);
+        box.addView(i);
+        box.addView(t);
+        return box;
+    }
+
+    private void showHome() {
+        content.removeAllViews();
+        sectionTitle("Добро пожаловать");
+        TextView intro = label("Музыка, авторы и новые релизы — в одном мобильном пространстве.", 14, MUTED, false);
+        intro.setPadding(0, 0, 0, dp(20));
+        content.addView(intro);
+
+        LinearLayout hero = card();
+        hero.setPadding(dp(20), dp(22), dp(20), dp(22));
+        TextView h = label("Откройте Nexora", 24, TEXT, true);
+        hero.addView(h);
+        TextView p = label("Следите за новыми треками, находите авторов и собирайте свою музыкальную ленту.", 14, MUTED, false);
+        p.setPadding(0, dp(8), 0, dp(16));
+        hero.addView(p);
+        Button explore = button("Открыть музыку", ACCENT);
+        explore.setOnClickListener(v -> showMusic());
+        hero.addView(explore, new LinearLayout.LayoutParams(-1, dp(48)));
+        content.addView(hero);
+
+        sectionTitle("Разделы");
+        content.addView(actionCard("♫", "Музыка", "Треки и новые релизы", v -> showMusic()));
+        content.addView(actionCard("+", "Создать", "Добавить свой материал", v -> showCreate()));
+        content.addView(actionCard("●", "Профиль", "Аккаунт и настройки", v -> showProfile()));
+    }
+
+    private void showMusic() {
+        content.removeAllViews();
+        sectionTitle("Музыка");
+        TextView p = label("Последние публикации и подборки появятся здесь после подключения каталога.", 14, MUTED, false);
+        p.setPadding(0, 0, 0, dp(18));
+        content.addView(p);
+        content.addView(trackCard("Nexora Sessions", "Новые релизы", "▶  Воспроизвести"));
+        content.addView(trackCard("Fresh Audio", "Рекомендованные треки", "▶  Открыть"));
+        content.addView(trackCard("Creators", "Музыка авторов Nexora", "▶  Смотреть"));
+    }
+
+    private void showCreate() {
+        content.removeAllViews();
+        sectionTitle("Создать");
+        content.addView(infoCard("Публикация музыки", "Здесь будет загрузка треков, обложки, название, описание и параметры публикации."));
+        Button login = button(supabase.isSignedIn() ? "Продолжить" : "Войти в Nexora", ACCENT);
+        login.setOnClickListener(v -> { if (supabase.isSignedIn()) Toast.makeText(this, "Раздел публикации готовится", Toast.LENGTH_SHORT).show(); else showAccountDialog(); });
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, dp(48));
+        lp.setMargins(0, dp(14), 0, 0);
+        content.addView(login, lp);
+    }
+
+    private void showProfile() {
+        content.removeAllViews();
+        sectionTitle("Профиль");
+        if (!supabase.isSignedIn()) {
+            content.addView(infoCard("Вы не вошли", "Войдите в аккаунт Nexora, чтобы открыть профиль, подписки и настройки."));
+            Button login = button("Войти", ACCENT);
+            login.setOnClickListener(v -> showAccountDialog());
+            content.addView(login, new LinearLayout.LayoutParams(-1, dp(48)));
+            return;
+        }
+        content.addView(infoCard("Ваш профиль", "Сессия активна. Профиль загружается из Supabase."));
+        Button profile = button("Загрузить профиль", ACCENT);
+        profile.setOnClickListener(v -> supabase.getCurrentProfile(new SupabaseClient.Callback() {
+            @Override public void onSuccess(String response) { runOnUiThread(() -> showMessage("Профиль", response)); }
+            @Override public void onError(Exception error) { runOnUiThread(() -> showMessage("Ошибка", error.getMessage())); }
+        }));
+        content.addView(profile, new LinearLayout.LayoutParams(-1, dp(48)));
+        Button logout = button("Выйти", Color.rgb(45, 47, 58));
+        logout.setOnClickListener(v -> { supabase.signOut(); account.setText("○"); account.setTextColor(MUTED); showProfile(); });
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, dp(48));
+        lp.setMargins(0, dp(10), 0, 0);
+        content.addView(logout, lp);
+    }
+
+    private void showAccountDialog() {
         if (supabase.isSignedIn()) {
             new android.app.AlertDialog.Builder(this)
                     .setTitle("Аккаунт Nexora")
-                    .setMessage("Сессия активна. Загрузить профиль из Supabase?")
-                    .setNegativeButton("Выйти", (d, w) -> {
-                        supabase.signOut();
-                        account.setText("Войти");
-                        Toast.makeText(this, "Вы вышли из аккаунта", Toast.LENGTH_SHORT).show();
-                    })
-                    .setPositiveButton("Профиль", (d, w) -> supabase.getCurrentProfile(new SupabaseClient.Callback() {
-                        @Override public void onSuccess(String response) {
-                            runOnUiThread(() -> new android.app.AlertDialog.Builder(MainActivity.this)
-                                    .setTitle("Профиль")
-                                    .setMessage(response)
-                                    .setPositiveButton("OK", null)
-                                    .show());
-                        }
-                        @Override public void onError(Exception error) {
-                            runOnUiThread(() -> Toast.makeText(MainActivity.this, error.getMessage(), Toast.LENGTH_LONG).show());
-                        }
-                    }))
+                    .setMessage("Сессия активна.")
+                    .setNegativeButton("Выйти", (d, w) -> { supabase.signOut(); account.setText("○"); account.setTextColor(MUTED); showHome(); })
+                    .setPositiveButton("Профиль", (d, w) -> showProfile())
                     .show();
             return;
         }
 
         LinearLayout box = new LinearLayout(this);
         box.setOrientation(LinearLayout.VERTICAL);
-        box.setPadding(dp(24), dp(4), dp(24), 0);
-
+        box.setPadding(dp(24), 0, dp(24), 0);
         EditText email = new EditText(this);
         email.setHint("Email");
-        email.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
-        box.addView(email, new LinearLayout.LayoutParams(-1, -2));
-
+        email.setSingleLine(true);
+        box.addView(email, new LinearLayout.LayoutParams(-1, dp(52)));
         EditText password = new EditText(this);
         password.setHint("Пароль");
-        password.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
-        box.addView(password, new LinearLayout.LayoutParams(-1, -2));
+        password.setSingleLine(true);
+        password.setInputType(0x81);
+        box.addView(password, new LinearLayout.LayoutParams(-1, dp(52)));
 
         new android.app.AlertDialog.Builder(this)
                 .setTitle("Вход в Nexora")
-                .setMessage("Используется Supabase Auth. Пароль передаётся только по HTTPS.")
+                .setMessage("Авторизация через Supabase Auth")
                 .setView(box)
-                .setNegativeButton("Регистрация", (d, w) -> authenticate(email.getText().toString(), password.getText().toString(), true, account))
-                .setPositiveButton("Войти", (d, w) -> authenticate(email.getText().toString(), password.getText().toString(), false, account))
+                .setNegativeButton("Регистрация", (d, w) -> authenticate(email.getText().toString(), password.getText().toString(), true))
+                .setPositiveButton("Войти", (d, w) -> authenticate(email.getText().toString(), password.getText().toString(), false))
                 .show();
     }
 
-    private void authenticate(String email, String password, boolean signUp, Button account) {
+    private void authenticate(String email, String password, boolean signUp) {
         if (email.trim().isEmpty() || password.isEmpty()) {
             Toast.makeText(this, "Введите email и пароль", Toast.LENGTH_SHORT).show();
             return;
         }
-        SupabaseClient.Callback callback = new SupabaseClient.Callback() {
-            @Override public void onSuccess(String response) {
-                runOnUiThread(() -> {
-                    account.setText("Аккаунт");
-                    Toast.makeText(MainActivity.this,
-                            signUp ? "Регистрация выполнена. Проверьте email, если требуется подтверждение." : "Вход выполнен",
-                            Toast.LENGTH_LONG).show();
-                });
-            }
-            @Override public void onError(Exception error) {
-                runOnUiThread(() -> Toast.makeText(MainActivity.this, error.getMessage(), Toast.LENGTH_LONG).show());
-            }
+        SupabaseClient.Callback cb = new SupabaseClient.Callback() {
+            @Override public void onSuccess(String response) { runOnUiThread(() -> { account.setText("●"); account.setTextColor(ACCENT); Toast.makeText(MainActivity.this, signUp ? "Регистрация выполнена" : "Вход выполнен", Toast.LENGTH_SHORT).show(); showProfile(); }); }
+            @Override public void onError(Exception error) { runOnUiThread(() -> Toast.makeText(MainActivity.this, error.getMessage(), Toast.LENGTH_LONG).show()); }
         };
-        if (signUp) supabase.signUp(email.trim(), password, callback);
-        else supabase.signIn(email.trim(), password, callback);
+        if (signUp) supabase.signUp(email.trim(), password, cb); else supabase.signIn(email.trim(), password, cb);
     }
 
-    private void configureWebView() {
-        WebSettings s = webView.getSettings();
-        s.setJavaScriptEnabled(true);
-        s.setDomStorageEnabled(true);
-        s.setDatabaseEnabled(true);
-        s.setAllowFileAccess(false);
-        s.setAllowContentAccess(true);
-        s.setMediaPlaybackRequiresUserGesture(false);
-        s.setBuiltInZoomControls(false);
-        s.setDisplayZoomControls(false);
-        s.setLoadWithOverviewMode(false);
-        s.setUseWideViewPort(false);
-        s.setTextZoom(100);
-        s.setCacheMode(WebSettings.LOAD_DEFAULT);
-        if (Build.VERSION.SDK_INT >= 26) s.setSafeBrowsingEnabled(true);
-
-        CookieManager.getInstance().setAcceptCookie(true);
-        if (Build.VERSION.SDK_INT >= 21) CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true);
-
-        webView.setWebViewClient(new WebViewClient() {
-            @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) { return handleUrl(request.getUrl().toString()); }
-            @Override public boolean shouldOverrideUrlLoading(WebView view, String url) { return handleUrl(url); }
-            @Override public void onPageStarted(WebView view, String url, android.graphics.Bitmap favicon) { status.setTextColor(Color.rgb(255, 191, 64)); }
-            @Override public void onPageFinished(WebView view, String url) { status.setTextColor(Color.rgb(54, 211, 153)); }
-        });
-
-        webView.setWebChromeClient(new WebChromeClient() {
-            @Override public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> callback, FileChooserParams params) {
-                if (fileCallback != null) fileCallback.onReceiveValue(null);
-                fileCallback = callback;
-                try { startActivityForResult(params.createIntent(), FILE_PICKER); }
-                catch (Exception e) { fileCallback = null; Toast.makeText(MainActivity.this, "Не удалось открыть выбор файла", Toast.LENGTH_SHORT).show(); return false; }
-                return true;
-            }
-        });
-
-        if (Build.VERSION.SDK_INT >= 19) WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG);
+    private void sectionTitle(String text) {
+        TextView t = label(text, 27, TEXT, true);
+        t.setPadding(0, dp(18), 0, dp(14));
+        content.addView(t);
     }
 
-    private boolean handleUrl(String url) {
-        Uri uri = Uri.parse(url);
-        String scheme = uri.getScheme();
-        if (scheme == null) return false;
-        if (scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https")) return false;
-        try { startActivity(new Intent(Intent.ACTION_VIEW, uri)); } catch (Exception ignored) {}
-        return true;
+    private View actionCard(String icon, String title, String subtitle, View.OnClickListener listener) {
+        LinearLayout c = card();
+        c.setOrientation(LinearLayout.HORIZONTAL);
+        c.setGravity(Gravity.CENTER_VERTICAL);
+        c.setPadding(dp(16), dp(15), dp(16), dp(15));
+        TextView i = label(icon, 24, ACCENT, true);
+        i.setGravity(Gravity.CENTER);
+        c.addView(i, new LinearLayout.LayoutParams(dp(48), dp(48)));
+        LinearLayout texts = new LinearLayout(this);
+        texts.setOrientation(LinearLayout.VERTICAL);
+        texts.setPadding(dp(14), 0, 0, 0);
+        texts.addView(label(title, 16, TEXT, true));
+        texts.addView(label(subtitle, 12, MUTED, false));
+        c.addView(texts, new LinearLayout.LayoutParams(0, -2, 1));
+        c.setOnClickListener(listener);
+        margin(c, 0, 0, 0, 10);
+        return c;
     }
 
-    private void loadServer() {
-        webView.loadUrl(normalizeUrl(prefs.getString(KEY_SERVER, DEFAULT_SERVER)));
+    private View trackCard(String name, String subtitle, String action) {
+        LinearLayout c = card();
+        c.setOrientation(LinearLayout.HORIZONTAL);
+        c.setGravity(Gravity.CENTER_VERTICAL);
+        c.setPadding(dp(14), dp(14), dp(14), dp(14));
+        TextView cover = label("♫", 27, TEXT, true);
+        cover.setGravity(Gravity.CENTER);
+        GradientDrawable g = new GradientDrawable(GradientDrawable.Orientation.TL_BR, new int[]{ACCENT, Color.rgb(54, 40, 115)});
+        g.setCornerRadius(dp(14));
+        cover.setBackground(g);
+        c.addView(cover, new LinearLayout.LayoutParams(dp(62), dp(62)));
+        LinearLayout text = new LinearLayout(this);
+        text.setOrientation(LinearLayout.VERTICAL);
+        text.setPadding(dp(14), 0, dp(8), 0);
+        text.addView(label(name, 15, TEXT, true));
+        text.addView(label(subtitle, 12, MUTED, false));
+        c.addView(text, new LinearLayout.LayoutParams(0, -2, 1));
+        TextView play = label(action, 11, TEXT, true);
+        c.addView(play, new LinearLayout.LayoutParams(-2, -2));
+        margin(c, 0, 0, 0, 10);
+        return c;
     }
 
-    private String normalizeUrl(String value) {
-        String url = value.trim();
-        if (url.isEmpty()) return DEFAULT_SERVER;
-        if (!url.startsWith("http://") && !url.startsWith("https://")) url = "https://" + url;
-        while (url.endsWith("/")) url = url.substring(0, url.length() - 1);
-        return url;
+    private View infoCard(String heading, String body) {
+        LinearLayout c = card();
+        c.setPadding(dp(18), dp(18), dp(18), dp(18));
+        c.addView(label(heading, 17, TEXT, true));
+        TextView b = label(body, 13, MUTED, false);
+        b.setPadding(0, dp(7), 0, 0);
+        c.addView(b);
+        return c;
     }
 
-    private void showServerDialog() {
-        final EditText input = new EditText(this);
-        input.setSingleLine(true);
-        input.setText(prefs.getString(KEY_SERVER, DEFAULT_SERVER));
-        input.setHint("https://nexora.example.com");
-        input.setSelectAllOnFocus(true);
-
-        LinearLayout box = new LinearLayout(this);
-        box.setPadding(dp(24), dp(4), dp(24), 0);
-        box.addView(input, new LinearLayout.LayoutParams(-1, -2));
-
-        new android.app.AlertDialog.Builder(this)
-                .setTitle("Сервер Nexora")
-                .setMessage("Для локального сервера используйте 127.0.0.1:5000. Для Cloudflare — ваш HTTPS-адрес.")
-                .setView(box)
-                .setNegativeButton("Отмена", null)
-                .setNeutralButton("Сбросить", (d, w) -> { prefs.edit().remove(KEY_SERVER).apply(); webView.loadUrl(DEFAULT_SERVER); })
-                .setPositiveButton("Подключить", (d, w) -> { String url = normalizeUrl(input.getText().toString()); prefs.edit().putString(KEY_SERVER, url).apply(); webView.loadUrl(url); })
-                .show();
+    private LinearLayout card() {
+        LinearLayout c = new LinearLayout(this);
+        c.setOrientation(LinearLayout.VERTICAL);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(SURFACE);
+        bg.setCornerRadius(dp(18));
+        c.setBackground(bg);
+        return c;
     }
 
-    @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == FILE_PICKER && fileCallback != null) {
-            fileCallback.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(resultCode, data));
-            fileCallback = null;
-        }
+    private Button button(String text, int color) {
+        Button b = new Button(this);
+        b.setText(text);
+        b.setTextColor(TEXT);
+        b.setTextSize(13);
+        b.setAllCaps(false);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(color);
+        bg.setCornerRadius(dp(14));
+        b.setBackground(bg);
+        return b;
     }
 
-    @Override public void onBackPressed() {
-        if (webView != null && webView.canGoBack()) webView.goBack(); else super.onBackPressed();
+    private TextView label(String text, float size, int color, boolean bold) {
+        TextView v = new TextView(this);
+        v.setText(text);
+        v.setTextSize(size);
+        v.setTextColor(color);
+        v.setTypeface(Typeface.DEFAULT, bold ? Typeface.BOLD : Typeface.NORMAL);
+        return v;
+    }
+
+    private void showMessage(String title, String message) {
+        new android.app.AlertDialog.Builder(this).setTitle(title).setMessage(message).setPositiveButton("OK", null).show();
+    }
+
+    private void margin(View v, int l, int t, int r, int b) {
+        LinearLayout.LayoutParams p = (LinearLayout.LayoutParams) v.getLayoutParams();
+        if (p == null) p = new LinearLayout.LayoutParams(-1, -2);
+        p.setMargins(dp(l), dp(t), dp(r), dp(b));
+        v.setLayoutParams(p);
     }
 
     private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }
