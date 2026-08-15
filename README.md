@@ -1,6 +1,6 @@
-# Nexora Music — Android
+# Nexora — Android
 
-Android WebView-клиент для Nexora Music.
+Android-клиент для Nexora.
 
 ## Сборка одной командой
 
@@ -21,11 +21,6 @@ APK появится здесь:
 
 ## Backend
 
-APK не содержит Python/Redis. Запускай Flask/Socket.IO отдельно, например в Termux:
+APK не содержит Python/Redis. Backend запускается отдельно.
 
-```sh
-cd ~/messenger_music_creator
-python app.py
-```
-
-По умолчанию клиент использует `http://127.0.0.1:5000`. Для Cloudflare укажи HTTPS-домен в настройках приложения.
+Cloudflare Worker используется для серверного API Nexora, а Supabase — для данных и аутентификации.
