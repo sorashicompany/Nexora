@@ -1,0 +1,10 @@
+name = "nexora-api"
+main = "worker.js"
+compatibility_date = "2026-08-15"
+
+[vars]
+# Set the real project URL here or override with `wrangler secret put SUPABASE_URL`.
+SUPABASE_URL = "https://xvmcsqpfcabhblaweaix.supabase.co"
+
+# Never commit SUPABASE_SERVICE_ROLE_KEY. Set it with:
+# wrangler secret put SUPABASE_SERVICE_ROLE_KEY
