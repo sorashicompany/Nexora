@@ -5,9 +5,11 @@ import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
+import android.view.WindowInsets;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
@@ -32,8 +34,15 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         getWindow().setStatusBarColor(BG);
         getWindow().setNavigationBarColor(BG);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            getWindow().getDecorView().setSystemUiVisibility(
+                    getWindow().getDecorView().getSystemUiVisibility()
+                            | View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR ^ View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+        }
+
         supabase = new SupabaseClient(this);
         buildShell();
         showHome();
@@ -43,10 +52,13 @@ public class MainActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(BG);
+        root.setClipToPadding(false);
+
+        applySystemInsets(root);
 
         LinearLayout top = new LinearLayout(this);
         top.setGravity(Gravity.CENTER_VERTICAL);
-        top.setPadding(dp(18), dp(12), dp(14), dp(8));
+        top.setPadding(horizontalPadding(), dp(10), horizontalPadding(), dp(8));
 
         ImageView logo = new ImageView(this);
         logo.setImageResource(R.drawable.nexora_mark);
@@ -71,20 +83,65 @@ public class MainActivity extends Activity {
 
         content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(horizontalPadding(), 0, horizontalPadding(), dp(16));
+
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
-        scroll.addView(content);
+        scroll.setClipToPadding(false);
+        scroll.addView(content, new ScrollView.LayoutParams(-1, -1));
         root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
 
         root.addView(buildNavigation());
+
+        root.addOnLayoutChangeListener((v, left, topEdge, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
+            int padding = horizontalPaddingForWidth(right - left);
+            if (content.getPaddingLeft() != padding) {
+                content.setPadding(padding, content.getPaddingTop(), padding, content.getPaddingBottom());
+            }
+            if (top.getPaddingLeft() != padding) {
+                top.setPadding(padding, top.getPaddingTop(), padding, top.getPaddingRight());
+            }
+            if (top.getPaddingRight() != padding) {
+                top.setPadding(top.getPaddingLeft(), top.getPaddingTop(), padding, top.getPaddingBottom());
+            }
+        });
+
         setContentView(root);
+        root.requestApplyInsets();
+    }
+
+    private void applySystemInsets(View root) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            getWindow().setDecorFitsSystemWindows(false);
+        } else {
+            root.setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
+        }
+
+        root.setOnApplyWindowInsetsListener((view, insets) -> {
+            int topInset;
+            int bottomInset;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                topInset = insets.getInsets(WindowInsets.Type.statusBars()).top;
+                bottomInset = insets.getInsets(WindowInsets.Type.navigationBars()).bottom;
+            } else {
+                topInset = insets.getSystemWindowInsetTop();
+                bottomInset = insets.getSystemWindowInsetBottom();
+            }
+
+            view.setPadding(0, topInset, 0, bottomInset);
+            return insets;
+        });
     }
 
     private LinearLayout buildNavigation() {
         LinearLayout nav = new LinearLayout(this);
         nav.setGravity(Gravity.CENTER);
-        nav.setPadding(dp(8), dp(7), dp(8), dp(9));
+        nav.setPadding(horizontalPadding(), dp(6), horizontalPadding(), dp(7));
         nav.setBackgroundColor(Color.rgb(13, 14, 22));
+        nav.setClipToPadding(false);
 
         nav.addView(navItem("Главная", "⌂", v -> showHome()), weightParams());
         nav.addView(navItem("Музыка", "♫", v -> showMusic()), weightParams());
@@ -324,6 +381,19 @@ public class MainActivity extends Activity {
         if (p == null) p = new LinearLayout.LayoutParams(-1, -2);
         p.setMargins(dp(l), dp(t), dp(r), dp(b));
         v.setLayoutParams(p);
+    }
+
+    private int horizontalPadding() {
+        return horizontalPaddingForWidth(getResources().getDisplayMetrics().widthPixels);
+    }
+
+    private int horizontalPaddingForWidth(int widthPx) {
+        float density = getResources().getDisplayMetrics().density;
+        int widthDp = Math.round(widthPx / density);
+        if (widthDp >= 840) return dp(32);
+        if (widthDp >= 600) return dp(28);
+        if (widthDp >= 480) return dp(24);
+        return dp(16);
     }
 
     private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }
