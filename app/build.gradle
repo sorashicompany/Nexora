@@ -5,7 +5,6 @@ plugins {
 android {
     namespace 'com.nexora.music'
     compileSdk 35
-    buildToolsVersion '34.0.4'
 
     defaultConfig {
         applicationId 'com.nexora.music'
