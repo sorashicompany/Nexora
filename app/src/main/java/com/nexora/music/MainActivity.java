@@ -1,15 +1,19 @@
 package com.nexora.music;
 
 import android.app.Activity;
-import android.content.Context;
+import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.Gravity;
 import android.view.View;
 import android.view.WindowInsets;
+import android.view.animation.AccelerateDecelerateInterpolator;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
@@ -18,383 +22,268 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+
 public class MainActivity extends Activity {
     private static final int BG = Color.rgb(8, 9, 15);
     private static final int SURFACE = Color.rgb(18, 20, 29);
-    private static final int SURFACE_2 = Color.rgb(25, 27, 38);
+    private static final int SURFACE_2 = Color.rgb(26, 28, 40);
     private static final int TEXT = Color.rgb(246, 247, 251);
-    private static final int MUTED = Color.rgb(154, 158, 172);
+    private static final int MUTED = Color.rgb(150, 155, 170);
     private static final int ACCENT = Color.rgb(125, 92, 255);
+    private static final int GREEN = Color.rgb(76, 205, 135);
 
     private SupabaseClient supabase;
+    private NexoraApiClient api;
     private LinearLayout content;
-    private TextView title;
-    private TextView account;
+    private LinearLayout navigation;
+    private TextView pageTitle;
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private Runnable authPoll;
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-
+    @Override protected void onCreate(Bundle state) {
+        super.onCreate(state);
         getWindow().setStatusBarColor(BG);
         getWindow().setNavigationBarColor(BG);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            getWindow().getDecorView().setSystemUiVisibility(
-                    getWindow().getDecorView().getSystemUiVisibility()
-                            | View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR ^ View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
-        }
-
         supabase = new SupabaseClient(this);
-        buildShell();
-        showHome();
+        api = new NexoraApiClient();
+        if (!supabase.isSignedIn() && !getPreferences(MODE_PRIVATE).getBoolean("welcome_seen", false)) showWelcome();
+        else showChats();
     }
 
-    private void buildShell() {
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(BG);
-        root.setClipToPadding(false);
-
-        applySystemInsets(root);
-
-        LinearLayout top = new LinearLayout(this);
-        top.setGravity(Gravity.CENTER_VERTICAL);
-        top.setPadding(horizontalPadding(), dp(10), horizontalPadding(), dp(8));
+    private void showWelcome() {
+        LinearLayout root = baseRoot();
+        root.setGravity(Gravity.CENTER);
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setGravity(Gravity.CENTER_HORIZONTAL);
+        box.setPadding(dp(28), dp(24), dp(28), dp(24));
 
         ImageView logo = new ImageView(this);
         logo.setImageResource(R.drawable.nexora_mark);
         logo.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
-        top.addView(logo, new LinearLayout.LayoutParams(dp(42), dp(42)));
+        box.addView(logo, new LinearLayout.LayoutParams(dp(92), dp(92)));
+        TextView title = text("Nexora", 34, TEXT, true);
+        title.setGravity(Gravity.CENTER);
+        box.addView(title);
+        TextView sub = text("Общение, музыка и творчество в одном пространстве.", 15, MUTED, false);
+        sub.setGravity(Gravity.CENTER);
+        sub.setPadding(dp(18), dp(8), dp(18), dp(28));
+        box.addView(sub);
 
-        LinearLayout brand = new LinearLayout(this);
-        brand.setOrientation(LinearLayout.VERTICAL);
-        brand.setPadding(dp(10), 0, 0, 0);
-        title = label("Nexora", 19, TEXT, true);
-        TextView subtitle = label("music & community", 11, MUTED, false);
-        brand.addView(title);
-        brand.addView(subtitle);
-        top.addView(brand, new LinearLayout.LayoutParams(0, -2, 1));
-
-        account = label(supabase.isSignedIn() ? "●" : "○", 22, supabase.isSignedIn() ? ACCENT : MUTED, true);
-        account.setGravity(Gravity.CENTER);
-        account.setPadding(dp(10), 0, 0, 0);
-        account.setOnClickListener(v -> showAccountDialog());
-        top.addView(account, new LinearLayout.LayoutParams(dp(42), dp(42)));
-        root.addView(top);
-
-        content = new LinearLayout(this);
-        content.setOrientation(LinearLayout.VERTICAL);
-        content.setPadding(horizontalPadding(), 0, horizontalPadding(), dp(16));
-
-        ScrollView scroll = new ScrollView(this);
-        scroll.setFillViewport(true);
-        scroll.setClipToPadding(false);
-        scroll.addView(content, new ScrollView.LayoutParams(-1, -1));
-        root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
-
-        root.addView(buildNavigation());
-
-        root.addOnLayoutChangeListener((v, left, topEdge, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
-            int padding = horizontalPaddingForWidth(right - left);
-            if (content.getPaddingLeft() != padding) {
-                content.setPadding(padding, content.getPaddingTop(), padding, content.getPaddingBottom());
-            }
-            if (top.getPaddingLeft() != padding) {
-                top.setPadding(padding, top.getPaddingTop(), padding, top.getPaddingRight());
-            }
-            if (top.getPaddingRight() != padding) {
-                top.setPadding(top.getPaddingLeft(), top.getPaddingTop(), padding, top.getPaddingBottom());
-            }
-        });
-
+        Button login = button("Войти через Telegram", ACCENT);
+        login.setOnClickListener(v -> telegramAuth("login"));
+        box.addView(login, new LinearLayout.LayoutParams(-1, dp(50)));
+        Button register = button("Зарегистрироваться", SURFACE_2);
+        register.setOnClickListener(v -> telegramAuth("register"));
+        LinearLayout.LayoutParams rp = new LinearLayout.LayoutParams(-1, dp(50));
+        rp.setMargins(0, dp(10), 0, 0);
+        box.addView(register, rp);
+        TextView note = text("Для подтверждения аккаунта Nexora откроется Telegram-бот.", 12, MUTED, false);
+        note.setGravity(Gravity.CENTER);
+        note.setPadding(dp(10), dp(18), dp(10), 0);
+        box.addView(note);
+        root.addView(box, new LinearLayout.LayoutParams(-1, -2));
         setContentView(root);
-        root.requestApplyInsets();
+        animateIn(box);
     }
 
-    private void applySystemInsets(View root) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            getWindow().setDecorFitsSystemWindows(false);
-        } else {
-            root.setSystemUiVisibility(
-                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
+    private void telegramAuth(String action) {
+        if (BuildConfig.NEXORA_API_URL.contains("REPLACE_WITH")) {
+            Toast.makeText(this, "Сначала укажите URL Nexora Worker в app/build.gradle", Toast.LENGTH_LONG).show();
+            return;
         }
-
-        root.setOnApplyWindowInsetsListener((view, insets) -> {
-            int topInset;
-            int bottomInset;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                topInset = insets.getInsets(WindowInsets.Type.statusBars()).top;
-                bottomInset = insets.getInsets(WindowInsets.Type.navigationBars()).bottom;
-            } else {
-                topInset = insets.getSystemWindowInsetTop();
-                bottomInset = insets.getSystemWindowInsetBottom();
+        Toast.makeText(this, "Создаём защищённую ссылку…", Toast.LENGTH_SHORT).show();
+        api.startTelegramAuth(action, new NexoraApiClient.Callback() {
+            @Override public void onSuccess(JsonObject response) {
+                runOnUiThread(() -> {
+                    String challenge = response.get("challenge").getAsString();
+                    String link = response.get("deep_link").getAsString();
+                    try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(link))); }
+                    catch (Exception e) { Toast.makeText(MainActivity.this, link, Toast.LENGTH_LONG).show(); }
+                    beginPoll(challenge);
+                });
             }
-
-            view.setPadding(0, topInset, 0, bottomInset);
-            return insets;
+            @Override public void onError(Exception error) { runOnUiThread(() -> Toast.makeText(MainActivity.this, "Ошибка авторизации: " + error.getMessage(), Toast.LENGTH_LONG).show()); }
         });
     }
 
-    private LinearLayout buildNavigation() {
-        LinearLayout nav = new LinearLayout(this);
-        nav.setGravity(Gravity.CENTER);
-        nav.setPadding(horizontalPadding(), dp(6), horizontalPadding(), dp(7));
-        nav.setBackgroundColor(Color.rgb(13, 14, 22));
-        nav.setClipToPadding(false);
-
-        nav.addView(navItem("Главная", "⌂", v -> showHome()), weightParams());
-        nav.addView(navItem("Музыка", "♫", v -> showMusic()), weightParams());
-        nav.addView(navItem("Создать", "+", v -> showCreate()), weightParams());
-        nav.addView(navItem("Профиль", "●", v -> showProfile()), weightParams());
-        return nav;
+    private void beginPoll(String challenge) {
+        if (authPoll != null) handler.removeCallbacks(authPoll);
+        final long started = System.currentTimeMillis();
+        authPoll = new Runnable() {
+            @Override public void run() {
+                if (System.currentTimeMillis() - started > 5 * 60 * 1000L) {
+                    Toast.makeText(MainActivity.this, "Ссылка авторизации истекла", Toast.LENGTH_SHORT).show(); return;
+                }
+                api.pollTelegramAuth(challenge, new NexoraApiClient.Callback() {
+                    @Override public void onSuccess(JsonObject response) {
+                        runOnUiThread(() -> {
+                            String status = response.has("status") ? response.get("status").getAsString() : "pending";
+                            if ("approved".equals(status)) {
+                                supabase.setSession(response.get("access_token").getAsString(), response.has("refresh_token") ? response.get("refresh_token").getAsString() : "");
+                                getPreferences(MODE_PRIVATE).edit().putBoolean("welcome_seen", true).apply();
+                                Toast.makeText(MainActivity.this, "Вход выполнен", Toast.LENGTH_SHORT).show();
+                                showChats();
+                            } else if ("rejected".equals(status) || "expired".equals(status)) {
+                                Toast.makeText(MainActivity.this, "Авторизация не завершена", Toast.LENGTH_LONG).show();
+                            } else handler.postDelayed(authPoll, 1500);
+                        });
+                    }
+                    @Override public void onError(Exception error) { handler.postDelayed(authPoll, 2000); }
+                });
+            }
+        };
+        handler.post(authPoll);
     }
 
-    private LinearLayout.LayoutParams weightParams() {
-        return new LinearLayout.LayoutParams(0, dp(58), 1);
-    }
-
-    private View navItem(String text, String icon, View.OnClickListener listener) {
-        LinearLayout box = new LinearLayout(this);
-        box.setOrientation(LinearLayout.VERTICAL);
-        box.setGravity(Gravity.CENTER);
-        box.setOnClickListener(listener);
-        TextView i = label(icon, 21, TEXT, true);
-        TextView t = label(text, 10, MUTED, false);
-        box.addView(i);
-        box.addView(t);
-        return box;
-    }
-
-    private void showHome() {
+    private void showChats() {
+        showShell("Чаты", 0);
         content.removeAllViews();
-        sectionTitle("Добро пожаловать");
-        TextView intro = label("Музыка, авторы и новые релизы — в одном мобильном пространстве.", 14, MUTED, false);
-        intro.setPadding(0, 0, 0, dp(20));
-        content.addView(intro);
-
-        LinearLayout hero = card();
-        hero.setPadding(dp(20), dp(22), dp(20), dp(22));
-        TextView h = label("Откройте Nexora", 24, TEXT, true);
-        hero.addView(h);
-        TextView p = label("Следите за новыми треками, находите авторов и собирайте свою музыкальную ленту.", 14, MUTED, false);
-        p.setPadding(0, dp(8), 0, dp(16));
-        hero.addView(p);
-        Button explore = button("Открыть музыку", ACCENT);
-        explore.setOnClickListener(v -> showMusic());
-        hero.addView(explore, new LinearLayout.LayoutParams(-1, dp(48)));
-        content.addView(hero);
-
-        sectionTitle("Разделы");
-        content.addView(actionCard("♫", "Музыка", "Треки и новые релизы", v -> showMusic()));
-        content.addView(actionCard("+", "Создать", "Добавить свой материал", v -> showCreate()));
-        content.addView(actionCard("●", "Профиль", "Аккаунт и настройки", v -> showProfile()));
+        sectionTitle("Чаты");
+        TextView search = text("Поиск по чатам", 14, MUTED, false);
+        search.setPadding(dp(16), dp(14), dp(16), dp(14));
+        search.setBackground(round(SURFACE_2, 16));
+        content.addView(search, new LinearLayout.LayoutParams(-1, dp(48)));
+        content.addView(spacer(14));
+        if (!supabase.isSignedIn()) {
+            content.addView(info("Войдите в Nexora, чтобы видеть чаты и сообщения."));
+            return;
+        }
+        content.addView(chatRow("Nexora", "Здесь появятся ваши диалоги", "N", v -> showChat("Nexora")));
+        content.addView(chatRow("Сообщения", "Ваши личные переписки", "✉", v -> showChat("Сообщения")));
+        TextView empty = text("Когда появятся новые диалоги, они будут отображаться здесь.", 13, MUTED, false);
+        empty.setGravity(Gravity.CENTER);
+        empty.setPadding(dp(18), dp(32), dp(18), dp(20));
+        content.addView(empty);
     }
 
-    private void showMusic() {
+    private void showFriends() {
+        showShell("Друзья", 1);
         content.removeAllViews();
-        sectionTitle("Музыка");
-        TextView p = label("Последние публикации и подборки появятся здесь после подключения каталога.", 14, MUTED, false);
-        p.setPadding(0, 0, 0, dp(18));
-        content.addView(p);
-        content.addView(trackCard("Nexora Sessions", "Новые релизы", "▶  Воспроизвести"));
-        content.addView(trackCard("Fresh Audio", "Рекомендованные треки", "▶  Открыть"));
-        content.addView(trackCard("Creators", "Музыка авторов Nexora", "▶  Смотреть"));
+        sectionTitle("Друзья");
+        content.addView(info("Добавляйте друзей, находите исполнителей и битмейкеров и открывайте их профили."));
+        content.addView(friendRow("Исполнители", "Музыканты и авторы Nexora", "♫"));
+        content.addView(friendRow("Битмейкеры", "Создатели битов и инструменталов", "◈"));
+        content.addView(friendRow("Заявки", "Входящие запросы в друзья", "＋"));
     }
 
-    private void showCreate() {
+    private void showSettings() {
+        showShell("Настройки", 2);
         content.removeAllViews();
-        sectionTitle("Создать");
-        content.addView(infoCard("Публикация музыки", "Здесь будет загрузка треков, обложки, название, описание и параметры публикации."));
-        Button login = button(supabase.isSignedIn() ? "Продолжить" : "Войти в Nexora", ACCENT);
-        login.setOnClickListener(v -> { if (supabase.isSignedIn()) Toast.makeText(this, "Раздел публикации готовится", Toast.LENGTH_SHORT).show(); else showAccountDialog(); });
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, dp(48));
-        lp.setMargins(0, dp(14), 0, 0);
-        content.addView(login, lp);
+        sectionTitle("Настройки");
+        content.addView(setting("Уведомления", "Сообщения и события Nexora", "ON"));
+        content.addView(setting("Внешний вид", "Тёмная тема Nexora", "AUTO"));
+        content.addView(setting("Приватность", "Контроль видимости профиля", "›"));
+        content.addView(setting("Привязанные сервисы", "Telegram и другие сервисы", "›"));
+        Button logout = button("Выйти из аккаунта", Color.rgb(52, 54, 65));
+        logout.setOnClickListener(v -> { supabase.signOut(); getPreferences(MODE_PRIVATE).edit().putBoolean("welcome_seen", false).apply(); showWelcome(); });
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, dp(50)); lp.setMargins(0, dp(18), 0, 0); content.addView(logout, lp);
     }
 
     private void showProfile() {
+        showShell("Профиль", 3);
         content.removeAllViews();
         sectionTitle("Профиль");
-        if (!supabase.isSignedIn()) {
-            content.addView(infoCard("Вы не вошли", "Войдите в аккаунт Nexora, чтобы открыть профиль, подписки и настройки."));
-            Button login = button("Войти", ACCENT);
-            login.setOnClickListener(v -> showAccountDialog());
-            content.addView(login, new LinearLayout.LayoutParams(-1, dp(48)));
-            return;
-        }
-        content.addView(infoCard("Ваш профиль", "Сессия активна. Профиль загружается из Supabase."));
-        Button profile = button("Загрузить профиль", ACCENT);
-        profile.setOnClickListener(v -> supabase.getCurrentProfile(new SupabaseClient.Callback() {
-            @Override public void onSuccess(String response) { runOnUiThread(() -> showMessage("Профиль", response)); }
-            @Override public void onError(Exception error) { runOnUiThread(() -> showMessage("Ошибка", error.getMessage())); }
-        }));
-        content.addView(profile, new LinearLayout.LayoutParams(-1, dp(48)));
-        Button logout = button("Выйти", Color.rgb(45, 47, 58));
-        logout.setOnClickListener(v -> { supabase.signOut(); account.setText("○"); account.setTextColor(MUTED); showProfile(); });
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, dp(48));
-        lp.setMargins(0, dp(10), 0, 0);
-        content.addView(logout, lp);
+        LinearLayout hero = card();
+        hero.setGravity(Gravity.CENTER_VERTICAL);
+        hero.setPadding(dp(18), dp(18), dp(18), dp(18));
+        TextView avatar = text("N", 28, TEXT, true); avatar.setGravity(Gravity.CENTER); avatar.setBackground(round(ACCENT, 28));
+        hero.addView(avatar, new LinearLayout.LayoutParams(dp(68), dp(68)));
+        LinearLayout info = new LinearLayout(this); info.setOrientation(LinearLayout.VERTICAL); info.setPadding(dp(16), 0, 0, 0);
+        info.addView(text("Nexora User", 18, TEXT, true));
+        info.addView(text("@telegram_user", 13, MUTED, false));
+        info.addView(text("Исполнитель", 12, ACCENT, true));
+        hero.addView(info, new LinearLayout.LayoutParams(0, -2, 1));
+        content.addView(hero);
+        content.addView(spacer(12));
+        content.addView(info("Тип аккаунта: Исполнитель / Битмейкер. Вы сможете изменить тип в настройках профиля."));
+        sectionTitle("Привязанные сервисы");
+        content.addView(serviceRow("Telegram", "Подключён для входа", "✓"));
+        content.addView(serviceRow("Supabase", "Аккаунт Nexora", "✓"));
     }
 
-    private void showAccountDialog() {
-        if (supabase.isSignedIn()) {
-            new android.app.AlertDialog.Builder(this)
-                    .setTitle("Аккаунт Nexora")
-                    .setMessage("Сессия активна.")
-                    .setNegativeButton("Выйти", (d, w) -> { supabase.signOut(); account.setText("○"); account.setTextColor(MUTED); showHome(); })
-                    .setPositiveButton("Профиль", (d, w) -> showProfile())
-                    .show();
-            return;
-        }
+    private void showChat(String name) {
+        showShell(name, -1);
+        navigation.setVisibility(View.GONE);
+        content.removeAllViews();
+        LinearLayout header = new LinearLayout(this); header.setGravity(Gravity.CENTER_VERTICAL); header.setPadding(0, dp(10), 0, dp(10));
+        TextView back = text("‹", 34, TEXT, true); back.setGravity(Gravity.CENTER); back.setOnClickListener(v -> showChats()); header.addView(back, new LinearLayout.LayoutParams(dp(48), dp(48)));
+        header.addView(text(name, 19, TEXT, true), new LinearLayout.LayoutParams(0, dp(48), 1));
+        header.addView(text("⋯", 26, TEXT, true), new LinearLayout.LayoutParams(dp(48), dp(48)));
+        content.addView(header);
 
-        LinearLayout box = new LinearLayout(this);
-        box.setOrientation(LinearLayout.VERTICAL);
-        box.setPadding(dp(24), 0, dp(24), 0);
-        EditText email = new EditText(this);
-        email.setHint("Email");
-        email.setSingleLine(true);
-        box.addView(email, new LinearLayout.LayoutParams(-1, dp(52)));
-        EditText password = new EditText(this);
-        password.setHint("Пароль");
-        password.setSingleLine(true);
-        password.setInputType(0x81);
-        box.addView(password, new LinearLayout.LayoutParams(-1, dp(52)));
+        ScrollView messages = new ScrollView(this); LinearLayout messageBox = new LinearLayout(this); messageBox.setOrientation(LinearLayout.VERTICAL); messageBox.setPadding(0, dp(12), 0, dp(12));
+        messageBox.addView(message("Добро пожаловать в Nexora.", false));
+        messageBox.addView(message("Здесь будут отображаться сообщения этого чата.", false));
+        messages.addView(messageBox); content.addView(messages, new LinearLayout.LayoutParams(-1, 0, 1));
 
-        new android.app.AlertDialog.Builder(this)
-                .setTitle("Вход в Nexora")
-                .setMessage("Авторизация через Supabase Auth")
-                .setView(box)
-                .setNegativeButton("Регистрация", (d, w) -> authenticate(email.getText().toString(), password.getText().toString(), true))
-                .setPositiveButton("Войти", (d, w) -> authenticate(email.getText().toString(), password.getText().toString(), false))
-                .show();
+        LinearLayout composer = new LinearLayout(this); composer.setGravity(Gravity.CENTER_VERTICAL); composer.setPadding(0, dp(8), 0, dp(8));
+        EditText input = new EditText(this); input.setHint("Сообщение…"); input.setTextColor(TEXT); input.setHintTextColor(MUTED); input.setSingleLine(true); input.setPadding(dp(16), 0, dp(16), 0); input.setBackground(round(SURFACE_2, 24));
+        composer.addView(input, new LinearLayout.LayoutParams(0, dp(50), 1));
+        TextView send = text("➤", 22, ACCENT, true); send.setGravity(Gravity.CENTER); send.setOnClickListener(v -> {
+            String body = input.getText().toString().trim(); if (body.isEmpty()) return;
+            View bubble = message(body, true); messageBox.addView(bubble); input.setText(""); messages.post(() -> messages.fullScroll(View.FOCUS_DOWN)); animateSend(bubble);
+        });
+        composer.addView(send, new LinearLayout.LayoutParams(dp(52), dp(50)));
+        content.addView(composer);
     }
 
-    private void authenticate(String email, String password, boolean signUp) {
-        if (email.trim().isEmpty() || password.isEmpty()) {
-            Toast.makeText(this, "Введите email и пароль", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        SupabaseClient.Callback cb = new SupabaseClient.Callback() {
-            @Override public void onSuccess(String response) { runOnUiThread(() -> { account.setText("●"); account.setTextColor(ACCENT); Toast.makeText(MainActivity.this, signUp ? "Регистрация выполнена" : "Вход выполнен", Toast.LENGTH_SHORT).show(); showProfile(); }); }
-            @Override public void onError(Exception error) { runOnUiThread(() -> Toast.makeText(MainActivity.this, error.getMessage(), Toast.LENGTH_LONG).show()); }
-        };
-        if (signUp) supabase.signUp(email.trim(), password, cb); else supabase.signIn(email.trim(), password, cb);
+    private void showShell(String title, int selected) {
+        LinearLayout root = baseRoot();
+        LinearLayout top = new LinearLayout(this); top.setGravity(Gravity.CENTER_VERTICAL); top.setPadding(horizontal(), dp(8), horizontal(), dp(8));
+        ImageView logo = new ImageView(this); logo.setImageResource(R.drawable.nexora_mark); logo.setScaleType(ImageView.ScaleType.CENTER_INSIDE); top.addView(logo, new LinearLayout.LayoutParams(dp(38), dp(38)));
+        pageTitle = text(title, 19, TEXT, true); pageTitle.setPadding(dp(10), 0, 0, 0); top.addView(pageTitle, new LinearLayout.LayoutParams(0, dp(48), 1));
+        TextView profile = text("●", 21, ACCENT, true); profile.setGravity(Gravity.CENTER); profile.setOnClickListener(v -> showProfile()); top.addView(profile, new LinearLayout.LayoutParams(dp(44), dp(44))); root.addView(top);
+
+        content = new LinearLayout(this); content.setOrientation(LinearLayout.VERTICAL); content.setPadding(horizontal(), 0, horizontal(), dp(12));
+        ScrollView scroll = new ScrollView(this); scroll.setFillViewport(true); scroll.addView(content, new ScrollView.LayoutParams(-1, -1)); root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
+        navigation = buildNavigation(selected); root.addView(navigation, new LinearLayout.LayoutParams(-1, dp(68)));
+        setContentView(root); root.requestApplyInsets(); animateIn(content);
     }
 
-    private void sectionTitle(String text) {
-        TextView t = label(text, 27, TEXT, true);
-        t.setPadding(0, dp(18), 0, dp(14));
-        content.addView(t);
+    private LinearLayout buildNavigation(int selected) {
+        LinearLayout nav = new LinearLayout(this); nav.setGravity(Gravity.CENTER); nav.setPadding(horizontal(), dp(4), horizontal(), dp(4)); nav.setBackgroundColor(Color.rgb(13,14,22));
+        nav.addView(navItem("Чаты", "▣", selected == 0, v -> showChats()), weight());
+        nav.addView(navItem("Друзья", "♙", selected == 1, v -> showFriends()), weight());
+        nav.addView(navItem("Настройки", "⚙", selected == 2, v -> showSettings()), weight());
+        nav.addView(navItem("Профиль", "●", selected == 3, v -> showProfile()), weight());
+        return nav;
     }
 
-    private View actionCard(String icon, String title, String subtitle, View.OnClickListener listener) {
-        LinearLayout c = card();
-        c.setOrientation(LinearLayout.HORIZONTAL);
-        c.setGravity(Gravity.CENTER_VERTICAL);
-        c.setPadding(dp(16), dp(15), dp(16), dp(15));
-        TextView i = label(icon, 24, ACCENT, true);
-        i.setGravity(Gravity.CENTER);
-        c.addView(i, new LinearLayout.LayoutParams(dp(48), dp(48)));
-        LinearLayout texts = new LinearLayout(this);
-        texts.setOrientation(LinearLayout.VERTICAL);
-        texts.setPadding(dp(14), 0, 0, 0);
-        texts.addView(label(title, 16, TEXT, true));
-        texts.addView(label(subtitle, 12, MUTED, false));
-        c.addView(texts, new LinearLayout.LayoutParams(0, -2, 1));
-        c.setOnClickListener(listener);
-        margin(c, 0, 0, 0, 10);
-        return c;
+    private View navItem(String title, String icon, boolean selected, View.OnClickListener listener) {
+        LinearLayout box = new LinearLayout(this); box.setOrientation(LinearLayout.VERTICAL); box.setGravity(Gravity.CENTER); box.setOnClickListener(listener); box.setClickable(true);
+        TextView i = text(icon, 20, selected ? ACCENT : TEXT, true); i.setGravity(Gravity.CENTER); TextView t = text(title, 10, selected ? TEXT : MUTED, selected); t.setGravity(Gravity.CENTER); box.addView(i); box.addView(t); return box;
     }
 
-    private View trackCard(String name, String subtitle, String action) {
-        LinearLayout c = card();
-        c.setOrientation(LinearLayout.HORIZONTAL);
-        c.setGravity(Gravity.CENTER_VERTICAL);
-        c.setPadding(dp(14), dp(14), dp(14), dp(14));
-        TextView cover = label("♫", 27, TEXT, true);
-        cover.setGravity(Gravity.CENTER);
-        GradientDrawable g = new GradientDrawable(GradientDrawable.Orientation.TL_BR, new int[]{ACCENT, Color.rgb(54, 40, 115)});
-        g.setCornerRadius(dp(14));
-        cover.setBackground(g);
-        c.addView(cover, new LinearLayout.LayoutParams(dp(62), dp(62)));
-        LinearLayout text = new LinearLayout(this);
-        text.setOrientation(LinearLayout.VERTICAL);
-        text.setPadding(dp(14), 0, dp(8), 0);
-        text.addView(label(name, 15, TEXT, true));
-        text.addView(label(subtitle, 12, MUTED, false));
-        c.addView(text, new LinearLayout.LayoutParams(0, -2, 1));
-        TextView play = label(action, 11, TEXT, true);
-        c.addView(play, new LinearLayout.LayoutParams(-2, -2));
-        margin(c, 0, 0, 0, 10);
-        return c;
+    private View chatRow(String name, String preview, String icon, View.OnClickListener listener) {
+        LinearLayout row = card(); row.setGravity(Gravity.CENTER_VERTICAL); row.setPadding(dp(14), dp(12), dp(14), dp(12)); row.setOnClickListener(listener);
+        TextView a = text(icon, 22, TEXT, true); a.setGravity(Gravity.CENTER); a.setBackground(round(ACCENT, 30)); row.addView(a, new LinearLayout.LayoutParams(dp(54), dp(54)));
+        LinearLayout t = new LinearLayout(this); t.setOrientation(LinearLayout.VERTICAL); t.setPadding(dp(14), 0, 0, 0); t.addView(text(name, 16, TEXT, true)); t.addView(text(preview, 12, MUTED, false)); row.addView(t, new LinearLayout.LayoutParams(0, -2, 1));
+        margin(row, 0, 0, 0, 9); return row;
     }
 
-    private View infoCard(String heading, String body) {
-        LinearLayout c = card();
-        c.setPadding(dp(18), dp(18), dp(18), dp(18));
-        c.addView(label(heading, 17, TEXT, true));
-        TextView b = label(body, 13, MUTED, false);
-        b.setPadding(0, dp(7), 0, 0);
-        c.addView(b);
-        return c;
-    }
+    private View friendRow(String title, String subtitle, String icon) { return chatRow(title, subtitle, icon, v -> Toast.makeText(this, "Раздел готовится", Toast.LENGTH_SHORT).show()); }
+    private View setting(String title, String subtitle, String right) { LinearLayout row = card(); row.setGravity(Gravity.CENTER_VERTICAL); row.setPadding(dp(16), dp(14), dp(16), dp(14)); LinearLayout t = new LinearLayout(this); t.setOrientation(LinearLayout.VERTICAL); t.addView(text(title, 15, TEXT, true)); t.addView(text(subtitle, 12, MUTED, false)); row.addView(t, new LinearLayout.LayoutParams(0, -2, 1)); row.addView(text(right, 12, ACCENT, true)); margin(row,0,0,0,8); return row; }
+    private View serviceRow(String title, String subtitle, String status) { return setting(title, subtitle, status); }
 
-    private LinearLayout card() {
-        LinearLayout c = new LinearLayout(this);
-        c.setOrientation(LinearLayout.VERTICAL);
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(SURFACE);
-        bg.setCornerRadius(dp(18));
-        c.setBackground(bg);
-        return c;
-    }
+    private View message(String body, boolean own) { TextView b = text(body, 14, TEXT, false); b.setPadding(dp(14), dp(10), dp(14), dp(10)); b.setBackground(round(own ? ACCENT : SURFACE_2, 18)); LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, -2); lp.gravity = own ? Gravity.END : Gravity.START; lp.setMargins(0, dp(5), 0, dp(5)); b.setLayoutParams(lp); return b; }
 
-    private Button button(String text, int color) {
-        Button b = new Button(this);
-        b.setText(text);
-        b.setTextColor(TEXT);
-        b.setTextSize(13);
-        b.setAllCaps(false);
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(color);
-        bg.setCornerRadius(dp(14));
-        b.setBackground(bg);
-        return b;
-    }
-
-    private TextView label(String text, float size, int color, boolean bold) {
-        TextView v = new TextView(this);
-        v.setText(text);
-        v.setTextSize(size);
-        v.setTextColor(color);
-        v.setTypeface(Typeface.DEFAULT, bold ? Typeface.BOLD : Typeface.NORMAL);
-        return v;
-    }
-
-    private void showMessage(String title, String message) {
-        new android.app.AlertDialog.Builder(this).setTitle(title).setMessage(message).setPositiveButton("OK", null).show();
-    }
-
-    private void margin(View v, int l, int t, int r, int b) {
-        LinearLayout.LayoutParams p = (LinearLayout.LayoutParams) v.getLayoutParams();
-        if (p == null) p = new LinearLayout.LayoutParams(-1, -2);
-        p.setMargins(dp(l), dp(t), dp(r), dp(b));
-        v.setLayoutParams(p);
-    }
-
-    private int horizontalPadding() {
-        return horizontalPaddingForWidth(getResources().getDisplayMetrics().widthPixels);
-    }
-
-    private int horizontalPaddingForWidth(int widthPx) {
-        float density = getResources().getDisplayMetrics().density;
-        int widthDp = Math.round(widthPx / density);
-        if (widthDp >= 840) return dp(32);
-        if (widthDp >= 600) return dp(28);
-        if (widthDp >= 480) return dp(24);
-        return dp(16);
-    }
-
-    private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }
+    private View info(String value) { TextView t = text(value, 14, MUTED, false); t.setPadding(dp(16), dp(16), dp(16), dp(16)); t.setBackground(round(SURFACE, 16)); margin(t,0,0,0,10); return t; }
+    private View spacer(int dp) { return new View(this) {{ setLayoutParams(new LinearLayout.LayoutParams(1, MainActivity.this.dp(dp))); }}; }
+    private LinearLayout baseRoot() { LinearLayout root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setBackgroundColor(BG); root.setClipToPadding(false); applyInsets(root); return root; }
+    private void applyInsets(View root) { if (Build.VERSION.SDK_INT >= 30) getWindow().setDecorFitsSystemWindows(false); root.setOnApplyWindowInsetsListener((v, insets) -> { int top = Build.VERSION.SDK_INT >= 30 ? insets.getInsets(WindowInsets.Type.statusBars()).top : insets.getSystemWindowInsetTop(); int bottom = Build.VERSION.SDK_INT >= 30 ? insets.getInsets(WindowInsets.Type.navigationBars()).bottom : insets.getSystemWindowInsetBottom(); v.setPadding(0, top, 0, bottom); return insets; }); }
+    private int horizontal() { int w = getResources().getDisplayMetrics().widthPixels; return dp(w >= 900 ? 32 : w >= 600 ? 24 : 16); }
+    private int dp(int v) { return Math.round(v * getResources().getDisplayMetrics().density); }
+    private TextView text(String s, int size, int color, boolean bold) { TextView t = new TextView(this); t.setText(s); t.setTextSize(size); t.setTextColor(color); t.setTypeface(Typeface.DEFAULT, bold ? Typeface.BOLD : Typeface.NORMAL); return t; }
+    private Button button(String s, int color) { Button b = new Button(this); b.setText(s); b.setTextColor(TEXT); b.setTextSize(14); b.setAllCaps(false); b.setBackground(round(color, 16)); return b; }
+    private LinearLayout card() { LinearLayout l = new LinearLayout(this); l.setOrientation(LinearLayout.HORIZONTAL); l.setBackground(round(SURFACE, 18)); return l; }
+    private GradientDrawable round(int color, int radius) { GradientDrawable g = new GradientDrawable(); g.setColor(color); g.setCornerRadius(dp(radius)); return g; }
+    private LinearLayout.LayoutParams weight() { return new LinearLayout.LayoutParams(0, -1, 1); }
+    private void margin(View v,int l,int t,int r,int b){ if(v.getLayoutParams() instanceof LinearLayout.LayoutParams){ LinearLayout.LayoutParams p=(LinearLayout.LayoutParams)v.getLayoutParams(); p.setMargins(dp(l),dp(t),dp(r),dp(b)); v.setLayoutParams(p);} }
+    private void sectionTitle(String s) { TextView t=text(s,28,TEXT,true); t.setPadding(0,dp(12),0,dp(14)); content.addView(t); }
+    private void animateIn(View v){ v.setAlpha(0f); v.setTranslationY(dp(10)); v.animate().alpha(1f).translationY(0f).setDuration(260).setInterpolator(new AccelerateDecelerateInterpolator()).start(); }
+    private void animateSend(View v){ v.setScaleX(.85f); v.setScaleY(.85f); v.setAlpha(.4f); v.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(180).setInterpolator(new AccelerateDecelerateInterpolator()).start(); }
 }
