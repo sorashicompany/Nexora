@@ -1,7 +1,7 @@
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-  "Access-Control-Allow-Headers": "Authorization, Content-Type, X-Telegram-Bot-Api-Secret-Token"
+  "Access-Control-Allow-Headers": "Authorization, Content-Type, X-Telegram-Bot-Api-Secret-Token, X-Nexora-Setup-Secret"
 };
 
 function json(data, status = 200) {
@@ -90,6 +90,20 @@ async function handleTelegramWebhook(request, env) {
   return json({ ok: true });
 }
 
+async function setupTelegramWebhook(request, env) {
+  const setupSecret = request.headers.get("X-Nexora-Setup-Secret");
+  if (!env.TELEGRAM_AUTH_SECRET || setupSecret !== env.TELEGRAM_AUTH_SECRET) return json({ error: "forbidden" }, 403);
+  const url = new URL(request.url);
+  const webhookUrl = `${url.origin}/telegram/webhook`;
+  const result = await telegram(env, "setWebhook", {
+    url: webhookUrl,
+    secret_token: env.TELEGRAM_WEBHOOK_SECRET,
+    allowed_updates: ["message"],
+    drop_pending_updates: true
+  });
+  return json({ ok: result === true, webhook: webhookUrl });
+}
+
 export default {
   async fetch(request, env) {
     if (request.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -97,6 +111,7 @@ export default {
     try {
       if (url.pathname === "/health") return json({ ok: true, service: "nexora-api", timestamp: new Date().toISOString() });
       if (url.pathname === "/telegram/bot" && request.method === "GET") { const me = await telegram(env, "getMe"); return json({ username: me.username, name: me.first_name }); }
+      if (url.pathname === "/telegram/setup" && request.method === "POST") return setupTelegramWebhook(request, env);
       if (url.pathname === "/telegram/auth/start" && request.method === "POST") { const body = await request.json(); const action = body.action === "register" ? "register" : "login"; const challenge = randomToken(32); await supabase(env, "/rest/v1/telegram_auth_challenges", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ challenge, action }) }); const me = await telegram(env, "getMe"); return json({ challenge, action, bot_username: me.username, deep_link: `https://t.me/${me.username}?start=${challenge}`, expires_in: 300 }); }
       if (url.pathname === "/telegram/auth/poll" && request.method === "GET") { const challenge = url.searchParams.get("challenge"); if (!challenge) return json({ error: "challenge is required" }, 400); const rows = await supabase(env, `/rest/v1/telegram_auth_challenges?select=*&challenge=eq.${encodeURIComponent(challenge)}&limit=1`); if (!rows.length) return json({ status: "expired" }, 404); const row = rows[0]; if (new Date(row.expires_at).getTime() < Date.now() && row.status === "pending") return json({ status: "expired" }, 410); if (row.status === "pending") return json({ status: "pending" }); if (row.status === "rejected") return json({ status: "rejected" }); if (row.status === "approved") { await supabase(env, `/rest/v1/telegram_auth_challenges?challenge=eq.${encodeURIComponent(challenge)}`, { method: "DELETE" }); return json({ status: "approved", access_token: row.access_token, refresh_token: row.refresh_token, telegram_username: row.telegram_username, display_name: row.display_name }); } }
       if (url.pathname === "/telegram/webhook" && request.method === "POST") return handleTelegramWebhook(request, env);
