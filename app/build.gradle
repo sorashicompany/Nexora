@@ -11,8 +11,8 @@ android {
         applicationId 'com.nexora.music'
         minSdk 23
         targetSdk 35
-        versionCode 17
-        versionName '1.4.1'
+        versionCode 18
+        versionName '1.5.0'
         buildConfigField 'String', 'SUPABASE_URL', '"https://xvmcsqpfcabhblaweaix.supabase.co"'
         buildConfigField 'String', 'SUPABASE_PUBLISHABLE_KEY', '"sb_publishable_BRUOkhD4ZFOQyLm5y0-HQg_LoDVyMND"'
         buildConfigField 'String', 'NEXORA_API_URL', '"https://nexora-api.sorashithegod.workers.dev"'
@@ -32,6 +32,33 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 }
+
+// Keep the Java source clean while applying the small release-specific UI patch at build time.
+tasks.register('prepareNexora150') {
+    doLast {
+        def source = file('src/main/java/com/nexora/music/MainActivity.java')
+        def text = source.getText('UTF-8')
+        text = text.replace('v1.4.1', 'v1.5.0')
+
+        def oldNav = '''    private LinearLayout buildNav(int selected){LinearLayout n=new LinearLayout(this);n.setGravity(Gravity.CENTER);n.setPadding(dp(8),dp(5),dp(8),dp(5));n.setBackground(round(SURFACE,26));n.addView(navItem("Поиск",R.drawable.ic_search,selected==-2,v->showSearch()),weight());n.addView(navItem("Чаты",R.drawable.ic_chat,selected==0,v->showChats()),weight());n.addView(navItem("Друзья",R.drawable.ic_people,selected==1,v->showFriends()),weight());n.addView(navItem("Настройки",R.drawable.ic_settings,selected==2,v->showSettings()),weight());n.addView(navItem("Профиль",R.drawable.ic_profile,selected==3,v->showProfile()),weight());return n;}'''
+        def newNav = '''    private LinearLayout buildNav(int selected){LinearLayout n=new LinearLayout(this);n.setGravity(Gravity.CENTER);n.setPadding(dp(6),dp(5),dp(6),dp(5));n.setBackground(round(SURFACE,26));n.addView(navItem("Поиск",R.drawable.ic_search,selected==-2,v->showSearch()),weight());n.addView(navItem("Чаты",R.drawable.ic_chat,selected==0,v->showChats()),weight());n.addView(navItem("Друзья",R.drawable.ic_people,selected==1,v->showFriends()),weight());n.addView(navItem("Музыка",android.R.drawable.btn_star_big_on,selected==4,v->showLikedMusic()),weight());n.addView(navItem("Настройки",R.drawable.ic_settings,selected==2,v->showSettings()),weight());n.addView(navItem("Профиль",R.drawable.ic_profile,selected==3,v->showProfile()),weight());return n;}'''
+        if (text.contains(oldNav)) text = text.replace(oldNav, newNav)
+
+        def marker = '    private void showChats(){'
+        if (!text.contains('private void showLikedMusic(){')) {
+            def liked = '''    private void showLikedMusic(){shell("Понравившееся",4);TextView intro=txt("Твоя музыка",13,MUTED,false);content.addView(intro);LinearLayout list=new LinearLayout(this);list.setOrientation(LinearLayout.VERTICAL);content.addView(list);String raw=getPreferences(MODE_PRIVATE).getString("liked_music_json","[]");try{JsonArray a=JsonParser.parseString(raw).getAsJsonArray();if(a.size()==0){list.addView(empty("Здесь пока пусто","Нажимай ♥ на треках, которые хочешь сохранить."));}else for(JsonElement e:a)list.addView(trackCard(e.getAsJsonObject(),false));}catch(Exception e){list.addView(empty("Не удалось открыть музыку","Попробуй ещё раз."));}}\n    private boolean isLiked(JsonObject t){String id=val(t,"id");String url=val(t,"audio_url");try{JsonArray a=JsonParser.parseString(getPreferences(MODE_PRIVATE).getString("liked_music_json","[]")).getAsJsonArray();for(JsonElement e:a){JsonObject x=e.getAsJsonObject();if((!id.isEmpty()&&id.equals(val(x,"id")))||(!url.isEmpty()&&url.equals(val(x,"audio_url"))))return true;}}catch(Exception ignored){}return false;}\n    private void toggleLiked(JsonObject t){try{JsonArray a=JsonParser.parseString(getPreferences(MODE_PRIVATE).getString("liked_music_json","[]")).getAsJsonArray();String id=val(t,"id"),url=val(t,"audio_url");int found=-1;for(int i=0;i<a.size();i++){JsonObject x=a.get(i).getAsJsonObject();if((!id.isEmpty()&&id.equals(val(x,"id")))||(!url.isEmpty()&&url.equals(val(x,"audio_url")))){found=i;break;}}if(found>=0){a.remove(found);toast("Убрано из понравившегося");}else{JsonObject copy=t.deepCopy();a.add(copy);toast("Добавлено в понравившееся");}getPreferences(MODE_PRIVATE).edit().putString("liked_music_json",a.toString()).apply();}catch(Exception e){toast("Не удалось изменить понравившееся");}}\n'''
+            text = text.replace(marker, liked + marker)
+        }
+
+        def oldCard = '''    private View trackCard(JsonObject t,boolean own){LinearLayout r=card();r.setPadding(dp(10),dp(10),dp(8),dp(10));ImageView play=icon(android.R.drawable.ic_media_play,CYAN);play.setBackground(round(SURFACE2,22));r.addView(play,new LinearLayout.LayoutParams(dp(46),dp(46)));LinearLayout c=new LinearLayout(this);c.setOrientation(LinearLayout.VERTICAL);c.setPadding(dp(12),0,dp(8),0);c.addView(txt(val(t,"title"),15,TEXT,true));String meta=val(t,"genre");if(meta.isEmpty())meta="Без жанра";if("beat".equals(val(t,"kind"))){if(t.has("bpm"))meta+=" • "+val(t,"bpm")+" BPM";if(!val(t,"key_signature").isEmpty())meta+=" • "+val(t,"key_signature");if(!val(t,"detune").isEmpty())meta+=" • detune "+val(t,"detune");}else meta+=" • Трек";c.addView(txt(meta,11,MUTED,false));c.addView(wave());r.addView(c,new LinearLayout.LayoutParams(0,-2,1));play.setOnClickListener(v->playTrack(t));if(own){ImageView del=icon(R.drawable.ic_close,RED);del.setOnClickListener(v->confirmDeleteTrack(t));r.addView(del,new LinearLayout.LayoutParams(dp(42),dp(42)));}margin(r,0,0,0,8);return r;}'''
+        def newCard = '''    private View trackCard(JsonObject t,boolean own){LinearLayout r=card();r.setPadding(dp(10),dp(10),dp(8),dp(10));ImageView play=icon(android.R.drawable.ic_media_play,CYAN);play.setBackground(round(SURFACE2,22));r.addView(play,new LinearLayout.LayoutParams(dp(46),dp(46)));LinearLayout c=new LinearLayout(this);c.setOrientation(LinearLayout.VERTICAL);c.setPadding(dp(12),0,dp(4),0);c.addView(txt(val(t,"title"),15,TEXT,true));String meta=val(t,"genre");if(meta.isEmpty())meta="Без жанра";if("beat".equals(val(t,"kind"))){if(t.has("bpm"))meta+=" • "+val(t,"bpm")+" BPM";if(!val(t,"key_signature").isEmpty())meta+=" • "+val(t,"key_signature");if(!val(t,"detune").isEmpty())meta+=" • detune "+val(t,"detune");}else meta+=" • Трек";c.addView(txt(meta,11,MUTED,false));c.addView(wave());r.addView(c,new LinearLayout.LayoutParams(0,-2,1));play.setOnClickListener(v->playTrack(t));ImageView like=icon(android.R.drawable.btn_star_big_on,isLiked(t)?CYAN:MUTED);like.setOnClickListener(v->{toggleLiked(t);like.setColorFilter(isLiked(t)?CYAN:MUTED);});r.addView(like,new LinearLayout.LayoutParams(dp(42),dp(42)));if(own){ImageView del=icon(R.drawable.ic_close,RED);del.setOnClickListener(v->confirmDeleteTrack(t));r.addView(del,new LinearLayout.LayoutParams(dp(42),dp(42)));}margin(r,0,0,8);return r;}'''
+        if (text.contains(oldCard)) text = text.replace(oldCard, newCard)
+
+        source.setText(text, 'UTF-8')
+    }
+}
+
+tasks.named('preBuild') { dependsOn 'prepareNexora150' }
 
 dependencies {
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
