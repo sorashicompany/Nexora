@@ -1,0 +1,65 @@
+name: Fix Android compile helpers
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Repair MainActivity helpers
+        id: repair
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path("app/src/main/java/com/nexora/music/MainActivity.java")
+          src = path.read_text(encoding="utf-8")
+          original = src
+
+          # The large UI patch introduced calls to these helpers while the
+          # compact activity already had their lower-level equivalents.
+          if "private TextView text(String s,int z,int c,boolean bold)" not in src:
+              marker = "  private TextView txt(String s,int z,int c,boolean bold){"
+              helper = '''  private TextView text(String s,int z,int c,boolean bold){return txt(s,z,c,bold);}\n'''
+              src = src.replace(marker, helper + marker, 1)
+
+          if "private void sectionTitle(String s)" not in src:
+              marker = "  private void section(String s){"
+              helper = '''  private void sectionTitle(String s){section(s);}\n'''
+              src = src.replace(marker, helper + marker, 1)
+
+          if "private View setting(String title,String sub,String value)" not in src:
+              marker = "  private void settingButton(String title,String sub,View.OnClickListener l){"
+              helper = '''  private View setting(String title,String sub,String value){\n    LinearLayout r=settingRow(title,sub);\n    TextView v=txt(value,13,CYAN,true);\n    r.addView(v,new LinearLayout.LayoutParams(-2,-2));\n    return r;\n  }\n'''
+              src = src.replace(marker, helper + marker, 1)
+
+          if "private View serviceCard(String title,String subtitle,int accent)" not in src:
+              marker = "  private LinearLayout settingRow(String title,String sub){"
+              helper = '''  private View serviceCard(String title,String subtitle,int accent){\n    LinearLayout r=card();\n    r.setGravity(Gravity.CENTER_VERTICAL);\n    r.setPadding(dp(15),dp(11),dp(12),dp(11));\n    TextView mark=txt("●",18,accent,true);\n    mark.setGravity(Gravity.CENTER);\n    r.addView(mark,new LinearLayout.LayoutParams(dp(42),dp(42)));\n    LinearLayout c=new LinearLayout(this);\n    c.setOrientation(LinearLayout.VERTICAL);\n    c.setPadding(dp(10),0,0,0);\n    c.addView(txt(title,15,TEXT,true));\n    c.addView(txt(subtitle,11,MUTED,false));\n    r.addView(c,new LinearLayout.LayoutParams(0,-2,1));\n    r.addView(txt("›",22,MUTED,true));\n    margin(r,0,0,0,7);\n    return r;\n  }\n'''
+              src = src.replace(marker, helper + marker, 1)
+
+          src = src.replace("setStat(f,count(x),\"подписчиков\")", "setStat(f,String.valueOf(count(x)),\"подписчиков\")")
+
+          if src != original:
+              path.write_text(src, encoding="utf-8")
+              print("MainActivity repaired")
+          else:
+              print("MainActivity already repaired")
+
+      - name: Commit repair
+        if: steps.repair.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/src/main/java/com/nexora/music/MainActivity.java
+          git commit -m "fix(android): restore missing UI helpers"
+          git push
