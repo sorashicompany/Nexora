@@ -40,7 +40,12 @@ tasks.register('prepareNexoraLogo') {
     outputs.file(output)
     doLast {
         output.parentFile.mkdirs()
-        output.bytes = java.util.Base64.decoder.decode(source.text.replaceAll(/\s+/, ''))
+        def encoded = source.getText('UTF-8').replaceAll(/\s+/, '')
+        def remainder = encoded.length() % 4
+        if (remainder != 0) {
+            encoded += '=' * (4 - remainder)
+        }
+        output.bytes = java.util.Base64.getDecoder().decode(encoded)
     }
 }
 
