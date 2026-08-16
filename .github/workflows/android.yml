@@ -37,7 +37,8 @@ jobs:
           p = Path('app/src/main/java/com/nexora/music/MainActivity.java')
           s = p.read_text()
           s = s.replace('R.drawable.nexora_mark', 'R.drawable.nexora_logo')
-          s = s.replace('txt("v2.0.0",11,MUTED,false)', 'txt("v1.2.0",11,MUTED,false)')
+          s = s.replace('txt("v2.0.0",11,MUTED,false)', 'txt("v1.3.0",11,MUTED,false)')
+          s = s.replace('txt("v1.2.0",11,MUTED,false)', 'txt("v1.3.0",11,MUTED,false)')
           s = s.replace('TextView prof=text("●",21,ACCENT,true);prof.setGravity(Gravity.CENTER);prof.setOnClickListener(v->showProfile());top.addView(prof,new LinearLayout.LayoutParams(dp(44),dp(44)));', 'ImageView prof=icon(R.drawable.ic_profile,ACCENT);prof.setOnClickListener(v->showProfile());top.addView(prof,new LinearLayout.LayoutParams(dp(44),dp(44)));')
           s = s.replace('nav.addView(navItem("Чаты","▣",selected==0,v->showChats()),weight());nav.addView(navItem("Друзья","♙",selected==1,v->showFriends()),weight());nav.addView(navItem("Настройки","⚙",selected==2,v->showSettings()),weight());nav.addView(navItem("Профиль","●",selected==3,v->showProfile()),weight());', 'nav.addView(navItem("Чаты",R.drawable.ic_chat,selected==0,v->showChats()),weight());nav.addView(navItem("Друзья",R.drawable.ic_people,selected==1,v->showFriends()),weight());nav.addView(navItem("Настройки",R.drawable.ic_settings,selected==2,v->showSettings()),weight());nav.addView(navItem("Профиль",R.drawable.ic_profile,selected==3,v->showProfile()),weight());')
           s = s.replace('private View navItem(String title,String icon,boolean selected,View.OnClickListener l){', 'private View navItem(String title,int iconRes,boolean selected,View.OnClickListener l){')
@@ -63,12 +64,28 @@ jobs:
           p.write_text(s)
           PY
 
-      - name: Build debug APK
+      - name: Verify audio feature patch inputs
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          s = Path('app/src/main/java/com/nexora/music/MainActivity.java').read_text()
+          required = [
+              'private void loadTracks(String id,boolean own){',
+              'private View trackCard(JsonObject t){',
+              'private void addTrack(){',
+          ]
+          missing = [x for x in required if x not in s]
+          if missing:
+              raise SystemExit('Missing expected legacy audio hooks: ' + ', '.join(missing))
+          print('Audio patch inputs verified')
+          PY
+
+      - name: Build debug APK v1.3.0
         run: ./gradlew --no-daemon assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: nexora-debug-apk
+          name: nexora-v1.3.0-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
