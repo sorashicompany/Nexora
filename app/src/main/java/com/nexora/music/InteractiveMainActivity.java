@@ -1,17 +1,26 @@
 package com.nexora.music;
 
+import android.app.AlertDialog;
+import android.content.Intent;
+import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
 /**
- * Interaction layer for the Creator UI. It keeps MainActivity's existing
- * navigation/network actions intact and wires up visual controls that were
- * previously rendered as passive views (music play controls and settings rows).
+ * Interaction layer for the Creator UI.
+ * Music services are intentionally link-based: Nexora never asks for a
+ * third-party password or OAuth token. A user can attach public profile links
+ * for SoundCloud, BeatChain, Spotify and Yandex Music.
  */
 public class InteractiveMainActivity extends MainActivity {
     private final Handler interactionHandler = new Handler(Looper.getMainLooper());
@@ -63,10 +72,40 @@ public class InteractiveMainActivity extends MainActivity {
                 group.setFocusable(true);
                 group.setOnClickListener(v -> toggleSetting((ViewGroup) v));
             }
+            wireMusicService(group);
             for (int i = 0; i < group.getChildCount(); i++) {
                 wireControls(group.getChildAt(i));
             }
         }
+    }
+
+    private void wireMusicService(ViewGroup group) {
+        String label = findText(group, "SoundCloud");
+        if (label == null) label = findText(group, "BeatChain");
+        if (label == null) return;
+        if (Boolean.TRUE.equals(group.getTag(R.id.service_link_tag))) return;
+        group.setTag(R.id.service_link_tag, Boolean.TRUE);
+        group.setClickable(true);
+        group.setFocusable(true);
+        final String service = label;
+        group.setOnClickListener(v -> editServiceLink(service));
+        group.animate().alpha(1f).setDuration(160).start();
+    }
+
+    private String findText(ViewGroup group, String needle) {
+        if (group instanceof TextView) return null;
+        for (int i = 0; i < group.getChildCount(); i++) {
+            View child = group.getChildAt(i);
+            if (child instanceof TextView) {
+                String value = ((TextView) child).getText() == null ? "" : ((TextView) child).getText().toString();
+                if (value.toLowerCase().contains(needle.toLowerCase())) return needle;
+            }
+            if (child instanceof ViewGroup) {
+                String found = findText((ViewGroup) child, needle);
+                if (found != null) return found;
+            }
+        }
+        return null;
     }
 
     private boolean isSettingsRow(ViewGroup group) {
@@ -101,5 +140,131 @@ public class InteractiveMainActivity extends MainActivity {
         row.animate().scaleX(.985f).scaleY(.985f).setDuration(55)
                 .withEndAction(() -> row.animate().scaleX(1f).scaleY(1f).setDuration(90).start())
                 .start();
+    }
+
+    private void editServiceLink(String service) {
+        String key = serviceKey(service);
+        String current = getPreferences(MODE_PRIVATE).getString(key, "");
+        EditText input = new EditText(this);
+        input.setSingleLine(true);
+        input.setHint(exampleUrl(service));
+        input.setText(current);
+        input.setSelectAllOnFocus(true);
+        int pad = dpLocal(18);
+        input.setPadding(pad, pad, pad, pad);
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("Привязать " + service)
+                .setMessage("Укажи публичную ссылку на свой профиль. Nexora не запрашивает пароль или доступ к аккаунту.")
+                .setView(input)
+                .setNegativeButton("Отмена", null)
+                .setPositiveButton(current.isEmpty() ? "Привязать" : "Сохранить", null)
+                .create();
+
+        dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            String url = input.getText().toString().trim();
+            if (!isValidServiceUrl(service, url)) {
+                input.setError("Укажи корректную ссылку " + service);
+                return;
+            }
+            getPreferences(MODE_PRIVATE).edit().putString(key, url).apply();
+            dialog.dismiss();
+            Toast.makeText(this, service + " привязан", Toast.LENGTH_SHORT).show();
+            refreshServiceCards(service, url);
+        }));
+        dialog.show();
+    }
+
+    private boolean isValidServiceUrl(String service, String value) {
+        try {
+            Uri uri = Uri.parse(value);
+            String host = uri.getHost() == null ? "" : uri.getHost().toLowerCase();
+            if (!"https".equalsIgnoreCase(uri.getScheme())) return false;
+            if ("SoundCloud".equals(service)) return host.endsWith("soundcloud.com");
+            if ("BeatChain".equals(service)) return host.contains("beatchain");
+            if ("Spotify".equals(service)) return host.endsWith("spotify.com");
+            if ("Яндекс Музыка".equals(service)) return host.contains("music.yandex") || host.endsWith("yandex.ru") || host.endsWith("yandex.com");
+            return false;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private String exampleUrl(String service) {
+        if ("SoundCloud".equals(service)) return "https://soundcloud.com/username";
+        if ("BeatChain".equals(service)) return "https://beatchain.com/...";
+        if ("Spotify".equals(service)) return "https://open.spotify.com/artist/...";
+        return "https://music.yandex.ru/users/...";
+    }
+
+    private String serviceKey(String service) {
+        return "service_link_" + service.toLowerCase().replace(" ", "_");
+    }
+
+    private void refreshServiceCards(String service, String url) {
+        View root = getWindow().getDecorView().getRootView();
+        markServiceStatus(root, service, url);
+    }
+
+    private void markServiceStatus(View view, String service, String url) {
+        if (view instanceof TextView) return;
+        if (!(view instanceof ViewGroup)) return;
+        ViewGroup group = (ViewGroup) view;
+        String found = findText(group, service);
+        if (found != null) {
+            group.setContentDescription(service + " • Привязан");
+            group.animate().scaleX(.985f).scaleY(.985f).setDuration(55)
+                    .withEndAction(() -> group.animate().scaleX(1f).scaleY(1f).setDuration(100).start())
+                    .start();
+            return;
+        }
+        for (int i = 0; i < group.getChildCount(); i++) markServiceStatus(group.getChildAt(i), service, url);
+    }
+
+    private void addOptionalServiceCards(ViewGroup parent) {
+        if (parent == null || Boolean.TRUE.equals(parent.getTag(R.id.optional_services_tag))) return;
+        parent.setTag(R.id.optional_services_tag, Boolean.TRUE);
+        parent.addView(serviceLinkCard("Spotify", "Привязать профиль Spotify"));
+        parent.addView(serviceLinkCard("Яндекс Музыка", "Привязать профиль Яндекс Музыки"));
+    }
+
+    private View serviceLinkCard(String service, String subtitle) {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.HORIZONTAL);
+        card.setGravity(Gravity.CENTER_VERTICAL);
+        int pad = dpLocal(15);
+        card.setPadding(pad, pad, pad, pad);
+        GradientDrawable bg = new GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                new int[]{Color.rgb(20,31,45), Color.rgb(13,22,34)});
+        bg.setCornerRadius(dpLocal(18));
+        card.setBackground(bg);
+        TextView title = new TextView(this);
+        title.setText(service);
+        title.setTextColor(Color.WHITE);
+        title.setTextSize(15);
+        title.setTypeface(null, 1);
+        TextView sub = new TextView(this);
+        sub.setText(subtitle);
+        sub.setTextColor(Color.rgb(145,160,176));
+        sub.setTextSize(12);
+        LinearLayout labels = new LinearLayout(this);
+        labels.setOrientation(LinearLayout.VERTICAL);
+        labels.addView(title);
+        labels.addView(sub);
+        card.addView(labels, new LinearLayout.LayoutParams(0, -2, 1));
+        TextView action = new TextView(this);
+        action.setText("Добавить");
+        action.setTextColor(Color.rgb(53,211,239));
+        action.setTextSize(13);
+        card.addView(action, new LinearLayout.LayoutParams(-2, -2));
+        card.setOnClickListener(v -> editServiceLink(service));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, dpLocal(68));
+        lp.setMargins(0, dpLocal(7), 0, 0);
+        card.setLayoutParams(lp);
+        return card;
+    }
+
+    private int dpLocal(int value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
     }
 }
