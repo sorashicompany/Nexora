@@ -34,6 +34,18 @@ android {
     }
 }
 
+tasks.register('prepareNexoraLogo') {
+    def source = file('nexora_logo.webp.b64')
+    def output = file('src/main/res/drawable-nodpi/nexora_logo.webp')
+    outputs.file(output)
+    doLast {
+        output.parentFile.mkdirs()
+        output.bytes = java.util.Base64.decoder.decode(source.text.replaceAll(/\s+/, ''))
+    }
+}
+
+tasks.named('preBuild') { dependsOn 'prepareNexoraLogo' }
+
 dependencies {
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
     implementation 'com.google.code.gson:gson:2.11.0'
