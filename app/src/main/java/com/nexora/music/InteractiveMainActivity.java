@@ -1,7 +1,6 @@
 package com.nexora.music;
 
 import android.app.AlertDialog;
-import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
@@ -48,6 +47,10 @@ public class InteractiveMainActivity extends MainActivity {
         if (view instanceof TextView) {
             TextView text = (TextView) view;
             String value = text.getText() == null ? "" : text.getText().toString();
+            if ("Сервисы создателя".equalsIgnoreCase(value) && text.getParent() instanceof ViewGroup) {
+                ViewGroup parent = (ViewGroup) text.getParent();
+                addOptionalServiceCards(parent);
+            }
             if ("▶".equals(value) && !Boolean.TRUE.equals(text.getTag())) {
                 text.setTag(Boolean.TRUE);
                 text.setClickable(true);
@@ -83,8 +86,8 @@ public class InteractiveMainActivity extends MainActivity {
         String label = findText(group, "SoundCloud");
         if (label == null) label = findText(group, "BeatChain");
         if (label == null) return;
-        if (Boolean.TRUE.equals(group.getTag(R.id.service_link_tag))) return;
-        group.setTag(R.id.service_link_tag, Boolean.TRUE);
+        if (Boolean.TRUE.equals(group.getTag())) return;
+        group.setTag(Boolean.TRUE);
         group.setClickable(true);
         group.setFocusable(true);
         final String service = label;
@@ -93,7 +96,6 @@ public class InteractiveMainActivity extends MainActivity {
     }
 
     private String findText(ViewGroup group, String needle) {
-        if (group instanceof TextView) return null;
         for (int i = 0; i < group.getChildCount(); i++) {
             View child = group.getChildAt(i);
             if (child instanceof TextView) {
@@ -170,7 +172,6 @@ public class InteractiveMainActivity extends MainActivity {
             getPreferences(MODE_PRIVATE).edit().putString(key, url).apply();
             dialog.dismiss();
             Toast.makeText(this, service + " привязан", Toast.LENGTH_SHORT).show();
-            refreshServiceCards(service, url);
         }));
         dialog.show();
     }
@@ -201,29 +202,9 @@ public class InteractiveMainActivity extends MainActivity {
         return "service_link_" + service.toLowerCase().replace(" ", "_");
     }
 
-    private void refreshServiceCards(String service, String url) {
-        View root = getWindow().getDecorView().getRootView();
-        markServiceStatus(root, service, url);
-    }
-
-    private void markServiceStatus(View view, String service, String url) {
-        if (view instanceof TextView) return;
-        if (!(view instanceof ViewGroup)) return;
-        ViewGroup group = (ViewGroup) view;
-        String found = findText(group, service);
-        if (found != null) {
-            group.setContentDescription(service + " • Привязан");
-            group.animate().scaleX(.985f).scaleY(.985f).setDuration(55)
-                    .withEndAction(() -> group.animate().scaleX(1f).scaleY(1f).setDuration(100).start())
-                    .start();
-            return;
-        }
-        for (int i = 0; i < group.getChildCount(); i++) markServiceStatus(group.getChildAt(i), service, url);
-    }
-
     private void addOptionalServiceCards(ViewGroup parent) {
-        if (parent == null || Boolean.TRUE.equals(parent.getTag(R.id.optional_services_tag))) return;
-        parent.setTag(R.id.optional_services_tag, Boolean.TRUE);
+        if (parent == null || Boolean.TRUE.equals(parent.getTag())) return;
+        parent.setTag(Boolean.TRUE);
         parent.addView(serviceLinkCard("Spotify", "Привязать профиль Spotify"));
         parent.addView(serviceLinkCard("Яндекс Музыка", "Привязать профиль Яндекс Музыки"));
     }
