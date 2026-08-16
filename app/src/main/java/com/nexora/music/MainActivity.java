@@ -29,6 +29,17 @@ public class MainActivity extends Activity {
     root.setOnApplyWindowInsetsListener((v,insets)->{int top=insets.getSystemWindowInsetTop();v.setPadding(l,t+top,r,b);return insets;});
     root.requestApplyInsets();
   }
+  private void configureSystemBars(){
+    Window w=getWindow();
+    w.setStatusBarColor(dark?BG:Color.rgb(246,248,251));
+    w.setNavigationBarColor(dark?BG:Color.rgb(246,248,251));
+    if(Build.VERSION.SDK_INT>=23)w.getDecorView().setSystemUiVisibility(dark?0:View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+  }
+  private void applyTopInset(View root){
+    final int l=root.getPaddingLeft(),t=root.getPaddingTop(),r=root.getPaddingRight(),b=root.getPaddingBottom();
+    root.setOnApplyWindowInsetsListener((v,insets)->{int top=insets.getSystemWindowInsetTop();v.setPadding(l,t+top,r,b);return insets;});
+    root.requestApplyInsets();
+  }
   private void splash(){LinearLayout root=base();root.setGravity(Gravity.CENTER);ImageView logo=new ImageView(this);logo.setImageResource(R.drawable.nexora_mark);logo.setScaleType(ImageView.ScaleType.CENTER_INSIDE);root.addView(logo,new LinearLayout.LayoutParams(dp(130),dp(130)));TextView t=txt("Nexora",31,TEXT,true);t.setGravity(Gravity.CENTER);root.addView(t);TextView v=txt("v2.0.0",11,MUTED,false);v.setGravity(Gravity.CENTER);root.addView(v);setContentView(root);logo.setAlpha(0);logo.setScaleX(.82f);logo.setScaleY(.82f);logo.animate().alpha(1).scaleX(1).scaleY(1).setDuration(360).start();handler.postDelayed(()->{if(!supabase.isSignedIn())showWelcome();else loadUser();},720);}
   private void loadUser(){supabase.getCurrentUser(new SupabaseClient.Callback(){public void onSuccess(String s){try{userId=JsonParser.parseString(s).getAsJsonObject().get("id").getAsString();presence();runOnUiThread(MainActivity.this::showChats);}catch(Exception e){showWelcome();}}public void onError(Exception e){supabase.signOut();showWelcome();}});}
   private void presence(){JsonObject p=new JsonObject();p.addProperty("user_id",userId);p.addProperty("last_seen",new Date().toInstant().toString());supabase.request("POST","/rest/v1/user_presence?on_conflict=user_id",p.toString(),new SupabaseClient.Callback(){public void onSuccess(String s){}public void onError(Exception e){}});}
@@ -68,7 +79,24 @@ public class MainActivity extends Activity {
   private void renderSearchProfiles(String s){runOnUiThread(()->{try{for(JsonElement e:JsonParser.parseString(s).getAsJsonArray()){JsonObject p=e.getAsJsonObject();String id=p.get("id").getAsString();TextView r=txt(val(p,"display_name")+"  @"+val(p,"username")+"\n"+profileType(p),15,TEXT,true);r.setPadding(dp(15),dp(13),dp(15),dp(13));r.setBackground(round(SURFACE,18));r.setOnClickListener(v->showPublicProfile(id));content.addView(r);}}catch(Exception ignored){}});}
   private void renderPosts(String s){runOnUiThread(()->{try{for(JsonElement e:JsonParser.parseString(s).getAsJsonArray()){JsonObject p=e.getAsJsonObject();content.addView(postCard("Пост",val(p,"body")));}}catch(Exception ignored){}});}
   private void renderMessages(String s){runOnUiThread(()->{try{for(JsonElement e:JsonParser.parseString(s).getAsJsonArray()){content.addView(postCard("Сообщение",val(e.getAsJsonObject(),"body")));}}catch(Exception ignored){}});}
-  private void showSettings(){showShell("Настройки",2);TextView kicker=text("NEXORA • STUDIO",11,CYAN,true);kicker.setPadding(0,dp(8),0,dp(2));content.addView(kicker);sectionTitle("Настройки");content.addView(setting("Воспроизведение","Автовоспроизведение превью","ON"));content.addView(setting("Качество аудио","Высокое качество","›"));content.addView(setting("Уведомления","Сообщения и новые релизы","ON"));sectionTitle("Тип профиля");content.addView(profileTypeSelector());sectionTitle("Музыкальные сервисы");content.addView(serviceSettingsRow("SoundCloud","Публичная ссылка на профиль","soundcloud",CYAN));content.addView(serviceSettingsRow("Spotify","Публичная ссылка на профиль","spotify",GREEN));content.addView(serviceSettingsRow("Яндекс Музыка","Публичная ссылка на профиль","yandex_music",VIOLET));content.addView(serviceSettingsRow("BeatChain","Публичная ссылка на профиль битмейкера","beatchain",BLUE));sectionTitle("Аккаунт");content.addView(setting("Приватность","Контроль видимости профиля","›"));content.addView(setting("Telegram","Используется только для входа","✓"));content.addView(spacer(12));Button out=button("Выйти из аккаунта",Color.rgb(65,28,40));out.setTextColor(Color.rgb(255,110,130));out.setOnClickListener(v->{supabase.signOut();getPreferences(MODE_PRIVATE).edit().putBoolean("welcome_seen",false).apply();showWelcome();});content.addView(out,new LinearLayout.LayoutParams(-1,dp(50)));}
+  private void showSettings(){
+    showShell("Настройки",2);
+    content.addView(txt("NEXORA • STUDIO",11,CYAN,true));
+    sectionTitle("Профиль");
+    settingButton("Настройки профиля","Имя, username, о себе, Telegram-канал и другие сервисы",v->profileSettings());
+    settingButton("Музыкальные сервисы","SoundCloud, Spotify, Яндекс Музыка, BeatChain",v->serviceSettings());
+    sectionTitle("Оформление");
+    LinearLayout theme=settingRow("Тёмная тема","Сохраняется на устройстве");
+    Switch sw=new Switch(this);sw.setChecked(dark);sw.setOnCheckedChangeListener((b,c)->{dark=c;getPreferences(0).edit().putBoolean("dark_theme",c).apply();configureSystemBars();showSettings();});theme.addView(sw,new LinearLayout.LayoutParams(-2,-2));content.addView(theme);
+    sectionTitle("Приватность");
+    settingButton("Приватность","Уведомления, видимость профиля, скрытые разделы и понравившаяся музыка",v->privacyDialog());
+    sectionTitle("Тип профиля");
+    content.addView(profileTypeSelector());
+    sectionTitle("Аккаунт");
+    settingButton("Очистить кэш","Удалить локальные временные данные",v->{getPreferences(MODE_PRIVATE).edit().clear().apply();toast("Кэш очищен");});
+    Button out=button("Выйти из аккаунта",Color.rgb(65,28,40));out.setTextColor(Color.rgb(255,110,130));out.setOnClickListener(v->{supabase.signOut();showWelcome();});content.addView(out,new LinearLayout.LayoutParams(-1,dp(50)));
+    Button del=button("Удалить аккаунт",Color.rgb(55,25,30));del.setTextColor(RED);del.setOnClickListener(v->confirmDelete());content.addView(del,new LinearLayout.LayoutParams(-1,dp(50)));
+  }
   private void profileTypeSettings(){LinearLayout box=card();box.setOrientation(LinearLayout.VERTICAL);box.setPadding(dp(14),dp(8),dp(14),dp(8));addRole(box,"Исполнитель","artist");addRole(box,"Битмейкер","beatmaker");content.addView(box);}
   private void addRole(LinearLayout box,String title,String key){Switch s=new Switch(this);s.setText(title);s.setTextColor(TEXT);s.setTextSize(15);s.setChecked(getPreferences(0).getBoolean("profile_"+key,false));s.setOnCheckedChangeListener((b,c)->{getPreferences(0).edit().putBoolean("profile_"+key,c).apply();saveRoles();});box.addView(s,new LinearLayout.LayoutParams(-1,dp(52)));}
   private void saveRoles(){boolean a=getPreferences(0).getBoolean("profile_artist",false),b=getPreferences(0).getBoolean("profile_beatmaker",false);JsonObject x=new JsonObject();x.addProperty("is_artist",a);x.addProperty("is_beatmaker",b);x.addProperty("profile_type",a&&b?"artist_beatmaker":a?"artist":b?"beatmaker":"user");supabase.request("PATCH","/rest/v1/profiles?id=eq."+userId,x.toString(),new SupabaseClient.Callback(){public void onSuccess(String s){toast("Тип профиля сохранён");}public void onError(Exception e){toast("Не удалось сохранить");}});}
