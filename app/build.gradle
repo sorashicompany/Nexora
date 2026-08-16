@@ -11,8 +11,8 @@ android {
         applicationId 'com.nexora.music'
         minSdk 23
         targetSdk 35
-        versionCode 12
-        versionName '1.2.0'
+        versionCode 13
+        versionName '1.3.0'
         buildConfigField 'String', 'SUPABASE_URL', '"https://xvmcsqpfcabhblaweaix.supabase.co"'
         buildConfigField 'String', 'SUPABASE_PUBLISHABLE_KEY', '"sb_publishable_BRUOkhD4ZFOQyLm5y0-HQg_LoDVyMND"'
         buildConfigField 'String', 'NEXORA_API_URL', '"https://nexora-api.sorashithegod.workers.dev"'
@@ -32,170 +32,32 @@ android {
     }
 }
 
-/**
- * Keeps the generated Android source deterministic after the older UI patch commits.
- * It also replaces the old URL-only track editor with real MP3/WAV Storage uploads,
- * owner-only deletion, and separate track/beat sections.
- */
-tasks.register('prepareNexoraAudioFeature') {
-    def source = file('src/main/java/com/nexora/music/MainActivity.java')
-    outputs.file(source)
-
+tasks.register('prepareNexoraLogo') {
+    def source = file('nexora_logo.webp.b64')
+    def output = file('src/main/res/drawable-nodpi/nexora_logo.webp')
+    outputs.file(output)
     doLast {
-        def text = source.getText('UTF-8')
-
-        def bounds = { String value, String signature, int from ->
-            int start = value.indexOf(signature, from)
-            if (start < 0) return null
-            int open = value.indexOf('{', start)
-            if (open < 0) return null
-            int depth = 0
-            for (int i = open; i < value.length(); i++) {
-                char ch = value.charAt(i)
-                if (ch == '{') depth++
-                else if (ch == '}') {
-                    depth--
-                    if (depth == 0) return [start, i + 1]
-                }
-            }
-            return null
+        output.parentFile.mkdirs()
+        def encoded = source.getText('UTF-8').replaceAll(/\s+/, '')
+        if (encoded.length() % 4 != 0) {
+            encoded += '=' * (4 - encoded.length() % 4)
         }
+        output.bytes = java.util.Base64.getDecoder().decode(encoded)
+    }
+}
 
-        def dedupe = { String value, String signature ->
-            def first = bounds(value, signature, 0)
-            if (first == null) return value
-            while (true) {
-                def duplicate = bounds(value, signature, first[1])
-                if (duplicate == null) break
-                value = value.substring(0, duplicate[0]) + value.substring(duplicate[1])
-            }
-            return value
-        }
-
-        def replaceMethod = { String value, String signature, String replacement ->
-            def b = bounds(value, signature, 0)
-            if (b == null) throw new GradleException("Nexora audio patch: method not found: ${signature}")
-            return value.substring(0, b[0]) + replacement + value.substring(b[1])
-        }
-
-        [
-            '  private void configureSystemBars(){',
-            '  private void applyTopInset(View root){',
-            '  private LinearLayout profileTypeSelector(){',
-            '    private void addProfileCheck(LinearLayout box,String label,String key,boolean checked){',
-            '    private void saveProfileTypes(){',
-            '    private View serviceSettingsRow(String title,String subtitle,String platform,int accent){',
-            '    private void editPublicService(String platform,String title){',
-            '    private boolean validServiceUrl(String platform,String url){',
-            '    private void saveService(String platform,String url){',
-            '    private void deleteService(String platform){',
-            '    private String visibleProfileTypes(JsonObject p){',
-            '    private ImageView icon(int res,int tint){'
-        ].each { sig -> text = dedupe(text, sig) }
-
-        if (!text.contains('private Uri pendingAudioUri;')) {
-            def marker = '  @Override protected void onCreate(Bundle b)'
-            def fields = '''  private Uri pendingAudioUri;
-  private String pendingAudioName = "";
-  private String pendingAudioMime = "";
-  private String pendingAudioKind = "track";
-  private TextView pendingAudioLabel;
-  private EditText pendingAudioTitle, pendingAudioGenre, pendingAudioBpm, pendingAudioKey, pendingAudioDetune;
-'''
-            text = text.replace(marker, fields + marker)
-        }
-
-        def newLoadTracks = '''  private void loadTracks(String id,boolean own){
-    supabase.request("GET","/rest/v1/profiles?select=is_artist,is_beatmaker&id=eq."+id+"&limit=1",null,new SupabaseClient.Callback(){
-      public void onSuccess(String profileJson){
-        boolean artist=false,beatmaker=false;
-        try{JsonArray pa=JsonParser.parseString(profileJson).getAsJsonArray();if(pa.size()>0){JsonObject p=pa.get(0).getAsJsonObject();artist=p.has("is_artist")&&!p.get("is_artist").isJsonNull()&&p.get("is_artist").getAsBoolean();beatmaker=p.has("is_beatmaker")&&!p.get("is_beatmaker").isJsonNull()&&p.get("is_beatmaker").getAsBoolean();}}catch(Exception ignored){}
-        final boolean showTracks=artist,showBeats=beatmaker;
-        supabase.request("GET","/rest/v1/creator_tracks?select=*&creator_id=eq."+id+"&order=created_at.desc&limit=100",null,new SupabaseClient.Callback(){
-          public void onSuccess(String s){runOnUiThread(()->{try{
-            JsonArray all=JsonParser.parseString(s).getAsJsonArray();
-            JsonArray tracks=new JsonArray(),beats=new JsonArray();
-            for(JsonElement e:all){JsonObject t=e.getAsJsonObject();if("beat".equalsIgnoreCase(val(t,"kind")))beats.add(t);else tracks.add(t);}
-            boolean renderTracks=showTracks||(!showBeats&&tracks.size()>0);
-            boolean renderBeats=showBeats||(!showTracks&&beats.size()>0);
-            if(renderTracks){section("Треки");if(tracks.size()==0)content.addView(empty("Треков пока нет","Загрузи первый аудиофайл MP3 или WAV."));else for(JsonElement e:tracks)content.addView(trackCard(e.getAsJsonObject(),own));if(own){Button add=button("+ Добавить трек",CYAN);add.setTextColor(BG);add.setOnClickListener(v->addTrackKind("track"));content.addView(add,new LinearLayout.LayoutParams(-1,dp(48)));}}
-            if(renderBeats){section("Биты");if(beats.size()==0)content.addView(empty("Битов пока нет","Загрузи первый бит в MP3 или WAV."));else for(JsonElement e:beats)content.addView(trackCard(e.getAsJsonObject(),own));if(own){Button add=button("+ Добавить бит",VIOLET);add.setTextColor(TEXT);add.setOnClickListener(v->addTrackKind("beat"));content.addView(add,new LinearLayout.LayoutParams(-1,dp(48)));}}
-          }catch(Exception ignored){}});}public void onError(Exception e){}});
-      }
-      public void onError(Exception e){
-        supabase.request("GET","/rest/v1/creator_tracks?select=*&creator_id=eq."+id+"&order=created_at.desc&limit=100",null,new SupabaseClient.Callback(){public void onSuccess(String s){runOnUiThread(()->{try{JsonArray a=JsonParser.parseString(s).getAsJsonArray();section("Музыка");for(JsonElement e:a)content.addView(trackCard(e.getAsJsonObject(),own));if(own){Button add=button("+ Добавить трек / бит",CYAN);add.setTextColor(BG);add.setOnClickListener(v->addTrackKind("track"));content.addView(add);}}catch(Exception ignored){}});}public void onError(Exception x){}});
-      }
-    });
-  }'''
-        text = replaceMethod(text, '  private void loadTracks(String id,boolean own){', newLoadTracks)
-
-        def newTrackCard = '''  private View trackCard(JsonObject t,boolean own){
-    LinearLayout r=card();r.setPadding(dp(12),dp(12),dp(12),dp(12));
-    TextView play=txt("▶",13,BG,true);play.setGravity(Gravity.CENTER);play.setBackground(round(CYAN,22));r.addView(play,new LinearLayout.LayoutParams(dp(44),dp(44)));
-    LinearLayout c=new LinearLayout(this);c.setOrientation(LinearLayout.VERTICAL);c.setPadding(dp(12),0,0,0);
-    c.addView(txt(val(t,"title"),15,TEXT,true));
-    String meta=val(t,"genre");
-    if(meta.isEmpty())meta="Без жанра";
-    if("beat".equalsIgnoreCase(val(t,"kind")))meta+=" • Бит";else meta+=" • Трек";
-    if(t.has("bpm")&&!t.get("bpm").isJsonNull())meta+=" • "+t.get("bpm").getAsInt()+" BPM";
-    if(t.has("key_signature")&&!t.get("key_signature").isJsonNull()&&!val(t,"key_signature").isEmpty())meta+=" • "+val(t,"key_signature");
-    if(t.has("detune")&&!t.get("detune").isJsonNull())meta+=" • detune "+val(t,"detune");
-    c.addView(txt(meta,11,MUTED,false));c.addView(wave());
-    r.addView(c,new LinearLayout.LayoutParams(0,-2,1));
-    play.setOnClickListener(v->{String url=val(t,"audio_url");if(!url.isEmpty())try{startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(url)));}catch(Exception ignored){}});
-    if(own){Button del=small("×",RED);del.setContentDescription("Удалить");del.setOnClickListener(v->confirmDeleteTrack(t));r.addView(del,new LinearLayout.LayoutParams(dp(42),dp(42)));}
-    margin(r,0,0,0,8);return r;
-  }'''
-        text = replaceMethod(text, '  private View trackCard(JsonObject t){', newTrackCard)
-
-        def newAddTrack = '''  private void addTrack(){addTrackKind("track");}
-
-  private void addTrackKind(String kind){
-    pendingAudioKind=kind;pendingAudioUri=null;pendingAudioName="";pendingAudioMime="";
-    LinearLayout f=form();
-    pendingAudioTitle=field("Название","");pendingAudioGenre=field("Жанр","");pendingAudioKey=field("Тональность","");pendingAudioDetune=field("Детюн","");
-    f.addView(pendingAudioTitle);f.addView(pendingAudioGenre);
-    if("beat".equals(kind)){pendingAudioBpm=field("BPM","");f.addView(pendingAudioBpm);}else pendingAudioBpm=null;
-    f.addView(pendingAudioKey);f.addView(pendingAudioDetune);
-    Button pick=button("Выбрать аудиофайл",SURFACE2);f.addView(pick,new LinearLayout.LayoutParams(-1,dp(48)));
-    pendingAudioLabel=txt("Файл не выбран • только MP3 / WAV • до 50 МБ",11,MUTED,false);pendingAudioLabel.setPadding(0,dp(8),0,dp(4));f.addView(pendingAudioLabel);
-    pick.setOnClickListener(v->pickAudioFile());
-    AlertDialog dialog=new AlertDialog.Builder(this).setTitle("Новый "+("beat".equals(kind)?"бит":"трек")).setView(f).setNegativeButton("Отмена",null).setPositiveButton("Загрузить",null).create();
-    dialog.setOnShowListener(x->dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{if(pendingAudioUri==null){toast("Сначала выбери MP3 или WAV");return;}uploadPendingAudio(dialog);}));
-    dialog.show();
-  }
-
-  private void pickAudioFile(){
-    Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("audio/*");startActivityForResult(i,1201);
-  }
-
-  @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){super.onActivityResult(requestCode,resultCode,data);if(requestCode!=1201||resultCode!=RESULT_OK||data==null||data.getData()==null)return;Uri uri=data.getData();String name="audio";try{android.database.Cursor c=getContentResolver().query(uri,new String[]{android.provider.OpenableColumns.DISPLAY_NAME},null,null,null);if(c!=null){if(c.moveToFirst()&&!c.isNull(0))name=c.getString(0);c.close();}}catch(Exception ignored){}String mime=getContentResolver().getType(uri);if(!NexoraStorage.isSupportedAudio(name,mime)){toast("Разрешены только MP3 и WAV");return;}pendingAudioUri=uri;pendingAudioName=name;pendingAudioMime=mime==null?(name.toLowerCase(Locale.US).endsWith(".wav")?"audio/wav":"audio/mpeg"):mime;if(pendingAudioLabel!=null)pendingAudioLabel.setText(name+" • готов к загрузке");}
-
-  private void uploadPendingAudio(AlertDialog dialog){
-    String title=pendingAudioTitle==null?"":pendingAudioTitle.getText().toString().trim();String genre=pendingAudioGenre==null?"":pendingAudioGenre.getText().toString().trim();String key=pendingAudioKey==null?"":pendingAudioKey.getText().toString().trim();String det=pendingAudioDetune==null?"":pendingAudioDetune.getText().toString().trim();
-    if(title.isEmpty()){toast("Укажи название");return;}
-    if("beat".equals(pendingAudioKind)&&(pendingAudioBpm==null||pendingAudioBpm.getText().toString().trim().isEmpty())){toast("Для бита укажи BPM");return;}
-    String path=userId+"/"+UUID.randomUUID().toString()+NexoraStorage.safeExtension(pendingAudioName);toast("Загрузка аудиофайла…");
-    new NexoraStorage(this,BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY,supabase.getAccessToken()).uploadAudio(pendingAudioUri,path,pendingAudioMime,new NexoraStorage.Callback(){
-      public void onSuccess(String url){JsonObject b=new JsonObject();b.addProperty("creator_id",userId);b.addProperty("title",title);b.addProperty("genre",genre);b.addProperty("kind",pendingAudioKind);b.addProperty("audio_url",url);if(!key.isEmpty())b.addProperty("key_signature",key);if(!det.isEmpty())try{b.addProperty("detune",Double.parseDouble(det));}catch(Exception ignored){}if("beat".equals(pendingAudioKind))try{b.addProperty("bpm",Integer.parseInt(pendingAudioBpm.getText().toString().trim()));}catch(Exception ignored){}supabase.request("POST","/rest/v1/creator_tracks",b.toString(),new SupabaseClient.Callback(){public void onSuccess(String s){runOnUiThread(()->{dialog.dismiss();toast("Аудиофайл загружен");showProfile();});}public void onError(Exception e){new NexoraStorage(MainActivity.this,BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY,supabase.getAccessToken()).deletePublicAudio(url,new NexoraStorage.Callback(){public void onSuccess(String x){}public void onError(Exception y){}});toast("Файл загружен, но запись трека не сохранилась");}});}
-      public void onError(Exception e){toast("Не удалось загрузить: "+e.getMessage());}
-    });
-  }
-
-  private void confirmDeleteTrack(JsonObject track){new AlertDialog.Builder(this).setTitle("Удалить "+("beat".equalsIgnoreCase(val(track,"kind"))?"бит":"трек")+"?").setMessage("Файл аудио и запись в профиле будут удалены.").setNegativeButton("Отмена",null).setPositiveButton("Удалить",(d,w)->deleteTrack(track)).show();}
-  private void deleteTrack(JsonObject track){String id=val(track,"id"),audio=val(track,"audio_url");Runnable deleteDb=()->supabase.request("DELETE","/rest/v1/creator_tracks?id=eq."+id,null,new SupabaseClient.Callback(){public void onSuccess(String s){runOnUiThread(()->{toast("Удалено");showProfile();});}public void onError(Exception e){toast("Не удалось удалить запись");}});if(audio.isEmpty()){deleteDb.run();return;}new NexoraStorage(this,BuildConfig.SUPABASE_URL,BuildConfig.SUPABASE_PUBLISHABLE_KEY,supabase.getAccessToken()).deletePublicAudio(audio,new NexoraStorage.Callback(){public void onSuccess(String x){deleteDb.run();}public void onError(Exception e){deleteDb.run();}});}
-'''
-        text = replaceMethod(text, '  private void addTrack(){', newAddTrack)
-
-        def insertMarker = '  private void loadPosts(String id)'
-        if (!text.contains('private void addTrackKind(String kind)')) throw new GradleException('Nexora audio patch: addTrackKind injection failed')
-
-        source.setText(text, 'UTF-8')
+tasks.register('prepareNexoraJava') {
+    outputs.file(file('src/main/java/com/nexora/music/MainActivity.java'))
+    doLast {
+        exec { commandLine 'python3', 'scripts/patch_android_ui.py' }
+        exec { commandLine 'python3', 'scripts/repair_java_duplicates.py' }
+        exec { commandLine 'python3', 'scripts/patch_audio.py' }
+        exec { commandLine 'python3', 'scripts/repair_java_duplicates.py' }
     }
 }
 
 tasks.named('preBuild') {
-    dependsOn 'prepareNexoraLogo', 'prepareNexoraAudioFeature'
+    dependsOn 'prepareNexoraLogo', 'prepareNexoraJava'
 }
 
 dependencies {
