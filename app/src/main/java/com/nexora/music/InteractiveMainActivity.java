@@ -48,8 +48,7 @@ public class InteractiveMainActivity extends MainActivity {
             TextView text = (TextView) view;
             String value = text.getText() == null ? "" : text.getText().toString();
             if ("Сервисы создателя".equalsIgnoreCase(value) && text.getParent() instanceof ViewGroup) {
-                ViewGroup parent = (ViewGroup) text.getParent();
-                addOptionalServiceCards(parent);
+                addOptionalServiceCards((ViewGroup) text.getParent());
             }
             if ("▶".equals(value) && !Boolean.TRUE.equals(text.getTag())) {
                 text.setTag(Boolean.TRUE);
@@ -76,17 +75,17 @@ public class InteractiveMainActivity extends MainActivity {
                 group.setOnClickListener(v -> toggleSetting((ViewGroup) v));
             }
             wireMusicService(group);
-            for (int i = 0; i < group.getChildCount(); i++) {
-                wireControls(group.getChildAt(i));
-            }
+            for (int i = 0; i < group.getChildCount(); i++) wireControls(group.getChildAt(i));
         }
     }
 
     private void wireMusicService(ViewGroup group) {
+        // Only inspect small card-like containers. This prevents a large root/content
+        // container from swallowing all clicks just because it contains a service label.
+        if (group.getChildCount() > 8) return;
         String label = findText(group, "SoundCloud");
         if (label == null) label = findText(group, "BeatChain");
-        if (label == null) return;
-        if (Boolean.TRUE.equals(group.getTag())) return;
+        if (label == null || Boolean.TRUE.equals(group.getTag())) return;
         group.setTag(Boolean.TRUE);
         group.setClickable(true);
         group.setFocusable(true);
