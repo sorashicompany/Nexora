@@ -30,12 +30,13 @@ jobs:
       - name: Install SDK packages
         run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
-      - name: Replace legacy Unicode UI icons
+      - name: Replace legacy Unicode UI icons and logo
         run: |
           python3 - <<'PY'
           from pathlib import Path
           p = Path('app/src/main/java/com/nexora/music/MainActivity.java')
           s = p.read_text()
+          s = s.replace('R.drawable.nexora_mark', 'R.drawable.nexora_logo')
           s = s.replace('TextView prof=text("●",21,ACCENT,true);prof.setGravity(Gravity.CENTER);prof.setOnClickListener(v->showProfile());top.addView(prof,new LinearLayout.LayoutParams(dp(44),dp(44)));', 'ImageView prof=icon(R.drawable.ic_profile,ACCENT);prof.setOnClickListener(v->showProfile());top.addView(prof,new LinearLayout.LayoutParams(dp(44),dp(44)));')
           s = s.replace('nav.addView(navItem("Чаты","▣",selected==0,v->showChats()),weight());nav.addView(navItem("Друзья","♙",selected==1,v->showFriends()),weight());nav.addView(navItem("Настройки","⚙",selected==2,v->showSettings()),weight());nav.addView(navItem("Профиль","●",selected==3,v->showProfile()),weight());', 'nav.addView(navItem("Чаты",R.drawable.ic_chat,selected==0,v->showChats()),weight());nav.addView(navItem("Друзья",R.drawable.ic_people,selected==1,v->showFriends()),weight());nav.addView(navItem("Настройки",R.drawable.ic_settings,selected==2,v->showSettings()),weight());nav.addView(navItem("Профиль",R.drawable.ic_profile,selected==3,v->showProfile()),weight());')
           s = s.replace('private View navItem(String title,String icon,boolean selected,View.OnClickListener l){', 'private View navItem(String title,int iconRes,boolean selected,View.OnClickListener l){')
@@ -58,7 +59,6 @@ jobs:
           s=p.read_text()
           s=s.replace('Button chat=small("",CYAN);chat.setOnClickListener(v->createChat(id));', 'ImageView chat=icon(R.drawable.ic_chat,CYAN);chat.setOnClickListener(v->createChat(id));')
           s=s.replace('Button more=small("",MUTED);more.setOnClickListener(v->friendMenu(id,friendshipId));', 'ImageView more=icon(R.drawable.ic_more,MUTED);more.setOnClickListener(v->friendMenu(id,friendshipId));')
-          s=s.replace('private void splash(){', 'private void splash(){')
           p.write_text(s)
           PY
 
