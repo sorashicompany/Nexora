@@ -41,16 +41,26 @@ jobs:
           s = s.replace('private View navItem(String title,String icon,boolean selected,View.OnClickListener l){', 'private View navItem(String title,int iconRes,boolean selected,View.OnClickListener l){')
           s = s.replace('TextView i=text(icon,20,selected?ACCENT:TEXT,true);i.setGravity(Gravity.CENTER);TextView t=', 'ImageView i=icon(iconRes,selected?ACCENT:TEXT);TextView t=')
           s = s.replace('TextView send=text("➤",22,ACCENT,true);send.setGravity(Gravity.CENTER);', 'ImageView send=icon(R.drawable.ic_send,ACCENT);')
-          s = s.replace('TextView back=text("‹ Назад",14,MUTED,false);', 'TextView back=text("Назад",14,MUTED,false);')
-          marker='private View navItem(String title,int iconRes,boolean selected,View.OnClickListener l){'
-          helper='private ImageView icon(int res,int tint){ImageView v=new ImageView(this);v.setImageResource(res);v.setColorFilter(tint);v.setScaleType(ImageView.ScaleType.CENTER);return v;}\n    '
-          if marker in s and 'private ImageView icon(int res,int tint)' not in s:
-              s=s.replace(marker,helper+marker)
+          s = s.replace('Button chat=small("▣",CYAN);', 'Button chat=small("",CYAN);')
+          s = s.replace('Button more=small("⋯",MUTED);', 'Button more=small("",MUTED);')
           p.write_text(s)
           PY
 
       - name: Apply profile role and public service fixes
         run: python3 scripts/patch_android_ui.py
+
+      - name: Repair duplicate Java helpers and use new action icons
+        run: |
+          python3 scripts/repair_java_duplicates.py
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('app/src/main/java/com/nexora/music/MainActivity.java')
+          s=p.read_text()
+          s=s.replace('Button chat=small("",CYAN);chat.setOnClickListener(v->createChat(id));', 'ImageView chat=icon(R.drawable.ic_chat,CYAN);chat.setOnClickListener(v->createChat(id));')
+          s=s.replace('Button more=small("",MUTED);more.setOnClickListener(v->friendMenu(id,friendshipId));', 'ImageView more=icon(R.drawable.ic_more,MUTED);more.setOnClickListener(v->friendMenu(id,friendshipId));')
+          s=s.replace('private void splash(){', 'private void splash(){')
+          p.write_text(s)
+          PY
 
       - name: Persist source fixes
         run: |
