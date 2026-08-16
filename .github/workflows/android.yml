@@ -62,28 +62,8 @@ jobs:
           p.write_text(s)
           PY
 
-      - name: Persist source fixes
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if ! git diff --quiet -- app/src/main/java/com/nexora/music/MainActivity.java; then
-            git add app/src/main/java/com/nexora/music/MainActivity.java
-            git commit -m "fix(android): complete profile roles and public music services"
-            git push
-          fi
-
       - name: Build debug APK
         run: ./gradlew --no-daemon assembleDebug
-
-      - name: Persist Gradle-applied UI and version changes
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if ! git diff --quiet -- app/src/main/java/com/nexora/music/MainActivity.java; then
-            git add app/src/main/java/com/nexora/music/MainActivity.java
-            git commit -m "feat(android): persist Nexora 1.2.0 settings UI"
-            git push
-          fi
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
