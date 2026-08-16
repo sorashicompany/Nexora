@@ -11,12 +11,10 @@ def replace_method(src, signature, replacement):
     brace = src.find('{', start)
     depth = 0
     for i in range(brace, len(src)):
-        if src[i] == '{':
-            depth += 1
+        if src[i] == '{': depth += 1
         elif src[i] == '}':
             depth -= 1
-            if depth == 0:
-                return src[:start] + replacement + src[i + 1:]
+            if depth == 0: return src[:start] + replacement + src[i + 1:]
     raise SystemExit(f'unclosed {signature}')
 
 
@@ -25,23 +23,10 @@ def remove_all_methods(src, signature):
         src = replace_method(src, signature, '')
     return src
 
-# The patch is intentionally idempotent: remove any helpers left by an earlier run
-# before adding the single canonical implementation.
-for sig in [
-    'private LinearLayout profileTypeSelector()',
-    'private void addProfileCheck(',
-    'private void saveProfileTypes()',
-    'private LinearLayout serviceSettingsRow(',
-    'private void editPublicService(',
-    'private boolean validServiceUrl(',
-    'private void saveService(',
-    'private void deleteService(',
-    'private String visibleProfileTypes(',
-    'private ImageView icon(',
-]:
+# Idempotent profile/service patch: repeated CI runs must never duplicate Java methods.
+for sig in ['private LinearLayout profileTypeSelector()','private void addProfileCheck(','private void saveProfileTypes()','private LinearLayout serviceSettingsRow(','private void editPublicService(','private boolean validServiceUrl(','private void saveService(','private void deleteService(','private String visibleProfileTypes(','private ImageView icon(']:
     s = remove_all_methods(s, sig)
 
-# serviceCard returns View, so keep the wrapper type compatible.
 s = s.replace('LinearLayout scCard=serviceCard(', 'View scCard=serviceCard(')
 s = s.replace('LinearLayout bcCard=serviceCard(', 'View bcCard=serviceCard(')
 
@@ -61,18 +46,11 @@ helpers = '''private LinearLayout profileTypeSelector(){LinearLayout box=card();
     '''
 
 marker = 'private void showProfile()'
-if marker not in s:
-    raise SystemExit('missing showProfile marker')
+if marker not in s: raise SystemExit('missing showProfile marker')
 s = s.replace(marker, helpers + marker, 1)
-
-# Profile only displays creator roles. Ordinary-user status stays hidden.
 s = s.replace('String type=p.has("profile_type")&&!p.get("profile_type").isJsonNull()?p.get("profile_type").getAsString():"user";', 'String type=visibleProfileTypes(p);', 1)
 s = s.replace('profileTypeLabel(type)', 'type')
-
-# Load role checkmarks from the server profile when profile data is fetched.
 needle = 'JsonObject p=a.get(0).getAsJsonObject();'
 replacement = 'JsonObject p=a.get(0).getAsJsonObject();if(p.has("is_artist"))getPreferences(MODE_PRIVATE).edit().putBoolean("profile_artist",p.get("is_artist").getAsBoolean()).putBoolean("profile_beatmaker",p.has("is_beatmaker")&&p.get("is_beatmaker").getAsBoolean()).apply();'
 s = s.replace(needle, replacement, 1)
-
 p.write_text(s)
-print('patched', p)
