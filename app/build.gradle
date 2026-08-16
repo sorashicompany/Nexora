@@ -5,28 +5,25 @@ plugins {
 android {
     namespace 'com.nexora.music'
     compileSdk 35
-
     buildFeatures { buildConfig true }
 
     defaultConfig {
         applicationId 'com.nexora.music'
         minSdk 23
         targetSdk 35
-        versionCode 16
-        versionName '1.4.0'
+        versionCode 17
+        versionName '1.4.1'
         buildConfigField 'String', 'SUPABASE_URL', '"https://xvmcsqpfcabhblaweaix.supabase.co"'
         buildConfigField 'String', 'SUPABASE_PUBLISHABLE_KEY', '"sb_publishable_BRUOkhD4ZFOQyLm5y0-HQg_LoDVyMND"'
         buildConfigField 'String', 'NEXORA_API_URL', '"https://nexora-api.sorashithegod.workers.dev"'
     }
 
     buildTypes {
+        debug { minifyEnabled false }
         release {
             minifyEnabled false
             shrinkResources false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-        }
-        debug {
-            minifyEnabled false
         }
     }
 
