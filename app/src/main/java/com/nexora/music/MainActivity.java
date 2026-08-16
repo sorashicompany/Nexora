@@ -46,7 +46,8 @@ public class MainActivity extends Activity {
     private void telegram(String action){api.startTelegramAuth(action,new NexoraApiClient.Callback(){public void onSuccess(JsonObject r){try{String link=val(r,"deep_link");if(!link.isEmpty())startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(link)));}catch(Exception ignored){}String c=val(r,"challenge");if(!c.isEmpty())pollTelegram(c);}public void onError(Exception e){toast("Ошибка авторизации");}});}
     private void pollTelegram(String challenge){handler.postDelayed(()->api.pollTelegramAuth(challenge,new NexoraApiClient.Callback(){public void onSuccess(JsonObject r){String status=val(r,"status");if("approved".equals(status)){supabase.setSession(val(r,"access_token"),val(r,"refresh_token"));loadUser();}else if("pending".equals(status))pollTelegram(challenge);}public void onError(Exception e){handler.postDelayed(()->pollTelegram(challenge),1800);}}),900);}
 
-    private void shell(String title,int selected){
+    private void showShell(String title,int selected){shell(title,selected);}
+  private void shell(String title,int selected){
         LinearLayout root=base();LinearLayout top=new LinearLayout(this);top.setGravity(Gravity.CENTER_VERTICAL);top.setPadding(dp(14),0,dp(14),0);
         ImageView logo=new ImageView(this);logo.setImageResource(R.drawable.nexora_mark);logo.setScaleType(ImageView.ScaleType.CENTER_INSIDE);top.addView(logo,new LinearLayout.LayoutParams(dp(38),dp(38)));TextView h=txt(title,20,TEXT,true);h.setPadding(dp(10),0,0,0);top.addView(h,new LinearLayout.LayoutParams(0,dp(54),1));
         content=new LinearLayout(this);content.setOrientation(LinearLayout.VERTICAL);content.setPadding(dp(16),dp(4),dp(16),dp(16));ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);scroll.addView(content);root.addView(top,new LinearLayout.LayoutParams(-1,dp(58)));root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
@@ -137,9 +138,33 @@ public class MainActivity extends Activity {
     private ImageView icon(int res,int tint){ImageView i=new ImageView(this);i.setImageResource(res);i.setColorFilter(tint);i.setScaleType(ImageView.ScaleType.CENTER);return i;}
     private View spacer(int d){View v=new View(this);v.setLayoutParams(new LinearLayout.LayoutParams(1,dp(d)));return v;}
     private LinearLayout.LayoutParams weight(){return new LinearLayout.LayoutParams(0,-1,1);}
-    private void section(String s){TextView t=txt(s,21,TEXT,true);t.setPadding(0,dp(16),0,dp(8));content.addView(t);}
-    private void settingButton(String title,String sub,View.OnClickListener l){LinearLayout r=settingRow(title,sub);r.setOnClickListener(l);content.addView(r);}
-    private LinearLayout settingRow(String title,String sub){LinearLayout r=card();r.setGravity(Gravity.CENTER_VERTICAL);r.setPadding(dp(14),dp(12),dp(10),dp(12));LinearLayout c=new LinearLayout(this);c.setOrientation(LinearLayout.VERTICAL);c.addView(txt(title,15,TEXT,true));c.addView(txt(sub,11,MUTED,false));r.addView(c,new LinearLayout.LayoutParams(0,-2,1));r.addView(txt("›",22,MUTED,true));margin(r,0,0,0,7);return r;}
+    private void sectionTitle(String s){section(s);}
+  private void section(String s){TextView t=txt(s,21,TEXT,true);t.setPadding(0,dp(16),0,dp(8));content.addView(t);}
+    private View setting(String title,String sub,String value){
+    LinearLayout r=settingRow(title,sub);
+    TextView v=txt(value,13,CYAN,true);
+    r.addView(v,new LinearLayout.LayoutParams(-2,-2));
+    return r;
+  }
+  private void settingButton(String title,String sub,View.OnClickListener l){LinearLayout r=settingRow(title,sub);r.setOnClickListener(l);content.addView(r);}
+    private View serviceCard(String title,String subtitle,int accent){
+    LinearLayout r=card();
+    r.setGravity(Gravity.CENTER_VERTICAL);
+    r.setPadding(dp(15),dp(11),dp(12),dp(11));
+    TextView mark=txt("●",18,accent,true);
+    mark.setGravity(Gravity.CENTER);
+    r.addView(mark,new LinearLayout.LayoutParams(dp(42),dp(42)));
+    LinearLayout c=new LinearLayout(this);
+    c.setOrientation(LinearLayout.VERTICAL);
+    c.setPadding(dp(10),0,0,0);
+    c.addView(txt(title,15,TEXT,true));
+    c.addView(txt(subtitle,11,MUTED,false));
+    r.addView(c,new LinearLayout.LayoutParams(0,-2,1));
+    r.addView(txt("›",22,MUTED,true));
+    margin(r,0,0,0,7);
+    return r;
+  }
+  private LinearLayout settingRow(String title,String sub){LinearLayout r=card();r.setGravity(Gravity.CENTER_VERTICAL);r.setPadding(dp(14),dp(12),dp(10),dp(12));LinearLayout c=new LinearLayout(this);c.setOrientation(LinearLayout.VERTICAL);c.addView(txt(title,15,TEXT,true));c.addView(txt(sub,11,MUTED,false));r.addView(c,new LinearLayout.LayoutParams(0,-2,1));r.addView(txt("›",22,MUTED,true));margin(r,0,0,0,7);return r;}
     private GradientDrawable round(int color,int radius){GradientDrawable g=new GradientDrawable();g.setColor(color);g.setCornerRadius(dp(radius));return g;}
     private View wave(){LinearLayout w=new LinearLayout(this);w.setGravity(Gravity.CENTER_VERTICAL);for(int i=0;i<24;i++){View b=new View(this);b.setBackground(round(i%6==0?VIOLET:CYAN,3));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(dp(4),dp(4+(i*9%17)));p.setMargins(1,0,1,0);w.addView(b,p);}return w;}
     private void margin(View v,int l,int t,int r,int b){if(v.getLayoutParams() instanceof LinearLayout.LayoutParams){LinearLayout.LayoutParams p=(LinearLayout.LayoutParams)v.getLayoutParams();p.setMargins(dp(l),dp(t),dp(r),dp(b));v.setLayoutParams(p);}}
