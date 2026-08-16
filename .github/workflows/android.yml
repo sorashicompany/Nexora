@@ -30,6 +30,24 @@ jobs:
       - name: Install SDK packages
         run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
+      - name: Replace legacy Unicode UI icons
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('app/src/main/java/com/nexora/music/MainActivity.java')
+          s = p.read_text()
+          s = s.replace('TextView prof=text("●",21,ACCENT,true);prof.setGravity(Gravity.CENTER);prof.setOnClickListener(v->showProfile());top.addView(prof,new LinearLayout.LayoutParams(dp(44),dp(44)));', 'ImageView prof=icon(R.drawable.ic_profile,ACCENT);prof.setOnClickListener(v->showProfile());top.addView(prof,new LinearLayout.LayoutParams(dp(44),dp(44)));')
+          s = s.replace('nav.addView(navItem("Чаты","▣",selected==0,v->showChats()),weight());nav.addView(navItem("Друзья","♙",selected==1,v->showFriends()),weight());nav.addView(navItem("Настройки","⚙",selected==2,v->showSettings()),weight());nav.addView(navItem("Профиль","●",selected==3,v->showProfile()),weight());', 'nav.addView(navItem("Чаты",R.drawable.ic_chat,selected==0,v->showChats()),weight());nav.addView(navItem("Друзья",R.drawable.ic_people,selected==1,v->showFriends()),weight());nav.addView(navItem("Настройки",R.drawable.ic_settings,selected==2,v->showSettings()),weight());nav.addView(navItem("Профиль",R.drawable.ic_profile,selected==3,v->showProfile()),weight());')
+          s = s.replace('private View navItem(String title,String icon,boolean selected,View.OnClickListener l){', 'private View navItem(String title,int iconRes,boolean selected,View.OnClickListener l){')
+          s = s.replace('TextView i=text(icon,20,selected?ACCENT:TEXT,true);i.setGravity(Gravity.CENTER);TextView t=', 'ImageView i=icon(iconRes,selected?ACCENT:TEXT);TextView t=')
+          s = s.replace('TextView send=text("➤",22,ACCENT,true);send.setGravity(Gravity.CENTER);', 'ImageView send=icon(R.drawable.ic_send,ACCENT);')
+          s = s.replace('TextView back=text("‹ Назад",14,MUTED,false);', 'TextView back=text("Назад",14,MUTED,false);')
+          marker='private View navItem(String title,int iconRes,boolean selected,View.OnClickListener l){'
+          helper='private ImageView icon(int res,int tint){ImageView v=new ImageView(this);v.setImageResource(res);v.setColorFilter(tint);v.setScaleType(ImageView.ScaleType.CENTER);return v;}\n    '
+          s=s.replace(marker,helper+marker)
+          p.write_text(s)
+          PY
+
       - name: Build debug APK
         run: ./gradlew --no-daemon assembleDebug
 
