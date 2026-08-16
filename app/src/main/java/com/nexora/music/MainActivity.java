@@ -260,6 +260,17 @@ public class MainActivity extends Activity {
     root.setOnApplyWindowInsetsListener((v,insets)->{int top=insets.getSystemWindowInsetTop();v.setPadding(l,t+top,r,b);return insets;});
     root.requestApplyInsets();
   }
+  private void configureSystemBars(){
+    Window w=getWindow();
+    w.setStatusBarColor(dark?BG:Color.rgb(246,248,251));
+    w.setNavigationBarColor(dark?BG:Color.rgb(246,248,251));
+    if(Build.VERSION.SDK_INT>=23)w.getDecorView().setSystemUiVisibility(dark?0:View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+  }
+  private void applyTopInset(View root){
+    final int l=root.getPaddingLeft(),t=root.getPaddingTop(),r=root.getPaddingRight(),b=root.getPaddingBottom();
+    root.setOnApplyWindowInsetsListener((v,insets)->{int top=insets.getSystemWindowInsetTop();v.setPadding(l,t+top,r,b);return insets;});
+    root.requestApplyInsets();
+  }
   private void splash(){LinearLayout root=base();root.setGravity(Gravity.CENTER);ImageView logo=new ImageView(this);logo.setImageResource(R.drawable.nexora_mark);logo.setScaleType(ImageView.ScaleType.CENTER_INSIDE);root.addView(logo,new LinearLayout.LayoutParams(dp(130),dp(130)));TextView t=txt("Nexora",31,TEXT,true);t.setGravity(Gravity.CENTER);root.addView(t);TextView v=txt("v2.0.0",11,MUTED,false);v.setGravity(Gravity.CENTER);root.addView(v);setContentView(root);logo.setAlpha(0);logo.setScaleX(.82f);logo.setScaleY(.82f);logo.animate().alpha(1).scaleX(1).scaleY(1).setDuration(360).start();handler.postDelayed(()->{if(!supabase.isSignedIn())showWelcome();else loadUser();},720);}
   private void loadUser(){supabase.getCurrentUser(new SupabaseClient.Callback(){public void onSuccess(String s){try{userId=JsonParser.parseString(s).getAsJsonObject().get("id").getAsString();presence();runOnUiThread(MainActivity.this::showChats);}catch(Exception e){showWelcome();}}public void onError(Exception e){supabase.signOut();showWelcome();}});}
   private void presence(){JsonObject p=new JsonObject();p.addProperty("user_id",userId);p.addProperty("last_seen",new Date().toInstant().toString());supabase.request("POST","/rest/v1/user_presence?on_conflict=user_id",p.toString(),new SupabaseClient.Callback(){public void onSuccess(String s){}public void onError(Exception e){}});}
