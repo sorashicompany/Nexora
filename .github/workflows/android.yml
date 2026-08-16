@@ -30,12 +30,12 @@ jobs:
       - name: Install SDK packages
         run: yes | sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
-      - name: Build Nexora 1.4.1
+      - name: Build Nexora 1.8.0
         run: ./gradlew --no-daemon assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: nexora-v1.4.1-debug-apk
+          name: nexora-v1.8.0-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
