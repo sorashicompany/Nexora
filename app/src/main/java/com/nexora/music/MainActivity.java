@@ -71,7 +71,7 @@ public class MainActivity extends Activity {
     private void showProfile(){showPublicProfile(userId);}
   private void showPublicProfile(String id){shell(id.equals(userId)?"Профиль":"Профиль пользователя",3);supabase.request("GET","/rest/v1/profiles?select=*&id=eq."+id+"&limit=1",null,new SupabaseClient.Callback(){public void onSuccess(String s){try{JsonArray a=JsonParser.parseString(s).getAsJsonArray();if(a.size()>0)runOnUiThread(()->renderProfile(a.get(0).getAsJsonObject(),id.equals(userId)));}catch(Exception ignored){}}public void onError(Exception e){}});}
   private void renderProfile(JsonObject p,boolean own){String id=idFrom(p),name=val(p,"display_name"),un=val(p,"username");LinearLayout hero=card();hero.setOrientation(LinearLayout.VERTICAL);hero.setGravity(Gravity.CENTER);hero.setPadding(dp(18),dp(20),dp(18),dp(20));hero.addView(avatar(name),new LinearLayout.LayoutParams(dp(86),dp(86)));hero.addView(txt(name.isEmpty()?"Nexora User":name,24,TEXT,true));hero.addView(txt(un.isEmpty()?"":"@"+un,13,MUTED,false));String roles=profileType(p);if(!roles.isEmpty())hero.addView(txt(roles,12,CYAN,true));TextView bio=txt(val(p,"bio"),13,MUTED,false);bio.setGravity(Gravity.CENTER);hero.addView(bio);if(own){Button edit=button("Редактировать профиль",CYAN);edit.setTextColor(BG);edit.setOnClickListener(v->profileSettings());hero.addView(edit,new LinearLayout.LayoutParams(dp(220),dp(44)));}else{Button follow=button("Подписаться",CYAN);follow.setTextColor(BG);follow.setOnClickListener(v->follow(id));hero.addView(follow,new LinearLayout.LayoutParams(dp(170),dp(44)));}content.addView(hero);stats(id);section("Сервисы");loadServices(id);section("Музыка и биты");loadTracks(id,own);section("Посты");loadPosts(id);}
-  private void stats(String id){LinearLayout s=card();s.setPadding(dp(8),dp(12),dp(8),dp(12));TextView f=stat("—","подписчиков"),t=stat("—","треков / битов"),p=stat("—","прослушиваний");s.addView(f,weight());s.addView(t,weight());s.addView(p,weight());content.addView(s);supabase.request("GET","/rest/v1/follows?select=id&following_id=eq."+id+"&status=eq.accepted",null,new SupabaseClient.Callback(){public void onSuccess(String x){setStat(f,count(x),"подписчиков");}public void onError(Exception e){}});supabase.request("GET","/rest/v1/creator_tracks?select=plays&creator_id=eq."+id,null,new SupabaseClient.Callback(){public void onSuccess(String x){try{JsonArray a=JsonParser.parseString(x).getAsJsonArray();long sum=0;for(JsonElement e:a)sum+=e.getAsJsonObject().get("plays").getAsLong();setStat(t,String.valueOf(a.size()),"треков / битов");setStat(p,formatNum(sum),"прослушиваний");}catch(Exception ignored){}}public void onError(Exception e){}});}
+  private void stats(String id){LinearLayout s=card();s.setPadding(dp(8),dp(12),dp(8),dp(12));TextView f=stat("—","подписчиков"),t=stat("—","треков / битов"),p=stat("—","прослушиваний");s.addView(f,weight());s.addView(t,weight());s.addView(p,weight());content.addView(s);supabase.request("GET","/rest/v1/follows?select=id&following_id=eq."+id+"&status=eq.accepted",null,new SupabaseClient.Callback(){public void onSuccess(String x){setStat(f,String.valueOf(count(x)),"подписчиков");}public void onError(Exception e){}});supabase.request("GET","/rest/v1/creator_tracks?select=plays&creator_id=eq."+id,null,new SupabaseClient.Callback(){public void onSuccess(String x){try{JsonArray a=JsonParser.parseString(x).getAsJsonArray();long sum=0;for(JsonElement e:a)sum+=e.getAsJsonObject().get("plays").getAsLong();setStat(t,String.valueOf(a.size()),"треков / битов");setStat(p,formatNum(sum),"прослушиваний");}catch(Exception ignored){}}public void onError(Exception e){}});}
   private TextView stat(String v,String l){TextView t=txt(v+"\n"+l,13,TEXT,true);t.setGravity(Gravity.CENTER);return t;}
   private void setStat(TextView v,String a,String b){runOnUiThread(()->v.setText(a+"\n"+b));}
   private void loadServices(String id){supabase.request("GET","/rest/v1/social_links?select=platform,url&profile_id=eq."+id,null,new SupabaseClient.Callback(){public void onSuccess(String s){runOnUiThread(()->{try{JsonArray a=JsonParser.parseString(s).getAsJsonArray();LinearLayout row=new LinearLayout(MainActivity.this);for(JsonElement e:a){JsonObject x=e.getAsJsonObject();TextView c=txt(serviceName(val(x,"platform")),13,TEXT,true);c.setGravity(Gravity.CENTER);c.setBackground(round(SURFACE,18));c.setOnClickListener(v->{try{startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(val(x,"url"))));}catch(Exception ignored){}});row.addView(c,new LinearLayout.LayoutParams(0,dp(58),1));}if(a.size()>2){Button more=button("Все сервисы",SURFACE2);more.setOnClickListener(v->serviceSettings());row.addView(more);}content.addView(row);}catch(Exception ignored){}});}public void onError(Exception e){}});}
@@ -90,8 +90,32 @@ public class MainActivity extends Activity {
   private View postCard(String title,String body){LinearLayout r=card();r.setOrientation(LinearLayout.VERTICAL);r.setPadding(dp(15),dp(14),dp(15),dp(14));r.addView(txt(title,11,CYAN,true));r.addView(txt(body,14,TEXT,false));margin(r,0,0,0,8);return r;}
   private View message(String body,boolean own){TextView t=txt(body,14,TEXT,false);t.setPadding(dp(14),dp(10),dp(14),dp(10));t.setBackground(round(own?Color.rgb(36,122,151):SURFACE2,18));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-2,-2);p.gravity=own?Gravity.END:Gravity.START;p.setMargins(0,dp(4),0,dp(4));t.setLayoutParams(p);return t;}
   private View empty(String title,String sub){LinearLayout r=card();r.setOrientation(LinearLayout.VERTICAL);r.setGravity(Gravity.CENTER);r.setPadding(dp(24),dp(30),dp(24),dp(30));r.addView(txt("N",28,CYAN,true));r.addView(txt(title,18,TEXT,true));r.addView(txt(sub,12,MUTED,false));return r;}
+  private void sectionTitle(String s){section(s);}
   private void section(String s){TextView t=txt(s,22,TEXT,true);t.setPadding(0,dp(16),0,dp(8));content.addView(t);}
+  private View setting(String title,String sub,String value){
+    LinearLayout r=settingRow(title,sub);
+    TextView v=txt(value,13,CYAN,true);
+    r.addView(v,new LinearLayout.LayoutParams(-2,-2));
+    return r;
+  }
   private void settingButton(String title,String sub,View.OnClickListener l){LinearLayout r=settingRow(title,sub);r.setOnClickListener(l);content.addView(r);}
+  private View serviceCard(String title,String subtitle,int accent){
+    LinearLayout r=card();
+    r.setGravity(Gravity.CENTER_VERTICAL);
+    r.setPadding(dp(15),dp(11),dp(12),dp(11));
+    TextView mark=txt("●",18,accent,true);
+    mark.setGravity(Gravity.CENTER);
+    r.addView(mark,new LinearLayout.LayoutParams(dp(42),dp(42)));
+    LinearLayout c=new LinearLayout(this);
+    c.setOrientation(LinearLayout.VERTICAL);
+    c.setPadding(dp(10),0,0,0);
+    c.addView(txt(title,15,TEXT,true));
+    c.addView(txt(subtitle,11,MUTED,false));
+    r.addView(c,new LinearLayout.LayoutParams(0,-2,1));
+    r.addView(txt("›",22,MUTED,true));
+    margin(r,0,0,0,7);
+    return r;
+  }
   private LinearLayout settingRow(String title,String sub){LinearLayout r=card();r.setGravity(Gravity.CENTER_VERTICAL);r.setPadding(dp(15),dp(13),dp(12),dp(13));LinearLayout c=new LinearLayout(this);c.setOrientation(LinearLayout.VERTICAL);c.addView(txt(title,15,TEXT,true));c.addView(txt(sub,11,MUTED,false));r.addView(c,new LinearLayout.LayoutParams(0,-2,1));r.addView(txt("›",22,MUTED,true));margin(r,0,0,0,7);return r;}
   private LinearLayout form(){LinearLayout f=new LinearLayout(this);f.setOrientation(LinearLayout.VERTICAL);f.setPadding(dp(8),0,dp(8),0);return f;}
   private EditText field(String hint,String value){EditText e=input(hint);e.setText(value);e.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_FLAG_MULTI_LINE);LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,dp(48));p.setMargins(0,dp(5),0,dp(5));e.setLayoutParams(p);return e;}
@@ -99,6 +123,7 @@ public class MainActivity extends Activity {
   private Button button(String s,int c){Button b=new Button(this);b.setText(s);b.setTextColor(TEXT);b.setTextSize(13);b.setAllCaps(false);b.setStateListAnimator(null);b.setBackground(round(c,20));return b;}
   private Button small(String s,int c){Button b=button(s,SURFACE2);b.setTextColor(c);b.setTextSize(19);return b;}
   private TextView avatar(String n){TextView a=txt(initial(n),19,TEXT,true);a.setGravity(Gravity.CENTER);a.setBackground(round(BLUE,50));return a;}
+  private TextView text(String s,int z,int c,boolean bold){return txt(s,z,c,bold);}
   private TextView txt(String s,int z,int c,boolean bold){TextView t=new TextView(this);t.setText(s==null?"":s);t.setTextSize(z);t.setTextColor(c);t.setTypeface(bold?fontBold:font);return t;}
   private LinearLayout card(){LinearLayout l=new LinearLayout(this);l.setOrientation(LinearLayout.HORIZONTAL);l.setBackground(round(SURFACE,20));return l;}
   private LinearLayout base(){LinearLayout r=new LinearLayout(this);r.setOrientation(LinearLayout.VERTICAL);r.setBackgroundColor(dark?BG:Color.rgb(246,248,251));return r;}
