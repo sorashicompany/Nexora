@@ -46,6 +46,11 @@ jobs:
               helper = '''  private View serviceCard(String title,String subtitle,int accent){\n    LinearLayout r=card();\n    r.setGravity(Gravity.CENTER_VERTICAL);\n    r.setPadding(dp(15),dp(11),dp(12),dp(11));\n    TextView mark=txt("●",18,accent,true);\n    mark.setGravity(Gravity.CENTER);\n    r.addView(mark,new LinearLayout.LayoutParams(dp(42),dp(42)));\n    LinearLayout c=new LinearLayout(this);\n    c.setOrientation(LinearLayout.VERTICAL);\n    c.setPadding(dp(10),0,0,0);\n    c.addView(txt(title,15,TEXT,true));\n    c.addView(txt(subtitle,11,MUTED,false));\n    r.addView(c,new LinearLayout.LayoutParams(0,-2,1));\n    r.addView(txt("›",22,MUTED,true));\n    margin(r,0,0,0,7);\n    return r;\n  }\n'''
               src = src.replace(marker, helper + marker, 1)
 
+          if "private void showShell(String title,int selected)" not in src:
+              marker = "  private void shell(String title,int selected){"
+              helper = '''  private void showShell(String title,int selected){shell(title,selected);}\n'''
+              src = src.replace(marker, helper + marker, 1)
+
           src = src.replace("setStat(f,count(x),\"подписчиков\")", "setStat(f,String.valueOf(count(x)),\"подписчиков\")")
 
           changed = src != original
