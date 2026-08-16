@@ -20,13 +20,12 @@ jobs:
         shell: python
         run: |
           from pathlib import Path
+          import os
 
           path = Path("app/src/main/java/com/nexora/music/MainActivity.java")
           src = path.read_text(encoding="utf-8")
           original = src
 
-          # The large UI patch introduced calls to these helpers while the
-          # compact activity already had their lower-level equivalents.
           if "private TextView text(String s,int z,int c,boolean bold)" not in src:
               marker = "  private TextView txt(String s,int z,int c,boolean bold){"
               helper = '''  private TextView text(String s,int z,int c,boolean bold){return txt(s,z,c,bold);}\n'''
@@ -49,11 +48,14 @@ jobs:
 
           src = src.replace("setStat(f,count(x),\"подписчиков\")", "setStat(f,String.valueOf(count(x)),\"подписчиков\")")
 
-          if src != original:
+          changed = src != original
+          if changed:
               path.write_text(src, encoding="utf-8")
               print("MainActivity repaired")
           else:
               print("MainActivity already repaired")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              out.write(f"changed={'true' if changed else 'false'}\n")
 
       - name: Commit repair
         if: steps.repair.outputs.changed == 'true'
