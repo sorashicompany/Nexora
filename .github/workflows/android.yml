@@ -44,7 +44,8 @@ jobs:
           s = s.replace('TextView back=text("‹ Назад",14,MUTED,false);', 'TextView back=text("Назад",14,MUTED,false);')
           marker='private View navItem(String title,int iconRes,boolean selected,View.OnClickListener l){'
           helper='private ImageView icon(int res,int tint){ImageView v=new ImageView(this);v.setImageResource(res);v.setColorFilter(tint);v.setScaleType(ImageView.ScaleType.CENTER);return v;}\n    '
-          s=s.replace(marker,helper+marker)
+          if marker in s and 'private ImageView icon(int res,int tint)' not in s:
+              s=s.replace(marker,helper+marker)
           p.write_text(s)
           PY
 
