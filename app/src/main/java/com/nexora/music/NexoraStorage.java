@@ -9,7 +9,6 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.UUID;
 
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -18,7 +17,7 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 import okio.BufferedSink;
 
-/** Small REST wrapper for Nexora's public audio Storage bucket. */
+/** REST wrapper for Nexora's public audio Storage bucket. */
 public final class NexoraStorage {
     private static final long MAX_AUDIO_BYTES = 50L * 1024L * 1024L;
     private final Context context;
@@ -38,25 +37,26 @@ public final class NexoraStorage {
     public void uploadAudio(Uri uri, String objectPath, String mimeType, Callback callback) {
         executor.execute(() -> {
             try {
-                long size = sizeOf(uri);
-                if (size > MAX_AUDIO_BYTES) {
+                long knownSize = sizeOf(uri);
+                if (knownSize > MAX_AUDIO_BYTES) {
                     callback.onError(new IllegalArgumentException("Файл больше 50 МБ"));
-                    return;
-                }
-                if (size <= 0) {
-                    callback.onError(new IllegalArgumentException("Не удалось определить размер файла"));
                     return;
                 }
                 MediaType media = MediaType.parse(mimeType == null ? "audio/mpeg" : mimeType);
                 RequestBody body = new RequestBody() {
                     @Override public MediaType contentType() { return media; }
-                    @Override public long contentLength() { return size; }
+                    @Override public long contentLength() { return knownSize > 0 ? knownSize : -1L; }
                     @Override public void writeTo(BufferedSink sink) throws java.io.IOException {
                         try (InputStream in = context.getContentResolver().openInputStream(uri)) {
                             if (in == null) throw new java.io.IOException("Не удалось открыть аудиофайл");
                             byte[] buffer = new byte[8192];
+                            long written = 0L;
                             int read;
-                            while ((read = in.read(buffer)) != -1) sink.write(buffer, 0, read);
+                            while ((read = in.read(buffer)) != -1) {
+                                written += read;
+                                if (written > MAX_AUDIO_BYTES) throw new java.io.IOException("Файл больше 50 МБ");
+                                sink.write(buffer, 0, read);
+                            }
                         }
                     }
                 };
@@ -88,8 +88,7 @@ public final class NexoraStorage {
                 String marker = "/storage/v1/object/public/audio/";
                 int index = publicUrl == null ? -1 : publicUrl.indexOf(marker);
                 if (index < 0) throw new IllegalArgumentException("Некорректная ссылка на аудио");
-                String path = publicUrl.substring(index + marker.length());
-                path = URLDecoder.decode(path, StandardCharsets.UTF_8.name());
+                String path = URLDecoder.decode(publicUrl.substring(index + marker.length()), StandardCharsets.UTF_8.name());
                 Request request = new Request.Builder()
                         .url(baseUrl + "/storage/v1/object/audio/" + path)
                         .header("apikey", apiKey)
@@ -112,8 +111,7 @@ public final class NexoraStorage {
 
     public static String safeExtension(String name) {
         String lower = name == null ? "" : name.toLowerCase(java.util.Locale.US);
-        if (lower.endsWith(".wav")) return ".wav";
-        return ".mp3";
+        return lower.endsWith(".wav") ? ".wav" : ".mp3";
     }
 
     public static boolean isSupportedAudio(String name, String mime) {
