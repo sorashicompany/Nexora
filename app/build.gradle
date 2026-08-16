@@ -5,33 +5,21 @@ plugins {
 android {
     namespace 'com.nexora.music'
     compileSdk 35
-
     buildFeatures { buildConfig true }
-
     defaultConfig {
         applicationId 'com.nexora.music'
         minSdk 23
         targetSdk 35
         versionCode 12
         versionName '1.2.0'
-
         buildConfigField 'String', 'SUPABASE_URL', '"https://xvmcsqpfcabhblaweaix.supabase.co"'
         buildConfigField 'String', 'SUPABASE_PUBLISHABLE_KEY', '"sb_publishable_BRUOkhD4ZFOQyLm5y0-HQg_LoDVyMND"'
         buildConfigField 'String', 'NEXORA_API_URL', '"https://nexora-api.sorashithegod.workers.dev"'
     }
-
     buildTypes {
-        release {
-            minifyEnabled false
-            shrinkResources false
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-        }
+        release { minifyEnabled false; shrinkResources false; proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro' }
     }
-
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
-    }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
 }
 
 tasks.register('prepareNexoraLogo') {
@@ -41,10 +29,7 @@ tasks.register('prepareNexoraLogo') {
     doLast {
         output.parentFile.mkdirs()
         def encoded = source.getText('UTF-8').replaceAll(/\s+/, '')
-        def remainder = encoded.length() % 4
-        if (remainder != 0) {
-            encoded += '=' * (4 - remainder)
-        }
+        if (encoded.length() % 4 != 0) encoded += '=' * (4 - encoded.length() % 4)
         output.bytes = java.util.Base64.getDecoder().decode(encoded)
     }
 }
@@ -58,11 +43,27 @@ tasks.register('prepareNexoraSettings120') {
         def start = text.indexOf('  private void showSettings(){')
         def end = text.indexOf('  private void profileTypeSettings(){', start)
         if (start >= 0 && end > start) {
-            def replacement = '''  private void showSettings(){showShell("Настройки",2);\n    section("Профиль");\n    settingButton120("Редактировать профиль","Имя, username, о себе и Telegram-канал",()->profileSettings());\n    settingButton120("Другие сервисы","SoundCloud, Spotify, Яндекс Музыка, BeatChain",()->serviceSettings());\n    section("Тип профиля");\n    content.addView(profileTypeSelector());\n    section("Оформление");\n    content.addView(themeToggle120());\n    section("Приватность");\n    settingButton120("Приватность","Уведомления, видимость профиля и разделов",()->privacyDialog120());\n    section("Данные");\n    settingButton120("Очистить кэш","Удалить локальные временные данные",()->clearCache120());\n    section("Аккаунт");\n    Button out=button("Выйти из аккаунта",Color.rgb(65,28,40));out.setTextColor(Color.rgb(255,110,130));out.setOnClickListener(v->{supabase.signOut();getPreferences(MODE_PRIVATE).edit().putBoolean("welcome_seen",false).apply();showWelcome();});content.addView(out,new LinearLayout.LayoutParams(-1,dp(50)));\n    Button del=button("Удалить аккаунт",Color.rgb(65,28,40));del.setTextColor(RED);del.setOnClickListener(v->confirmDelete());LinearLayout.LayoutParams delp=new LinearLayout.LayoutParams(-1,dp(50));delp.setMargins(0,dp(8),0,0);content.addView(del,delp);\n  }\n'''
+            def replacement = '''  private void showSettings(){showShell("Настройки",2);
+    section("Профиль");
+    settingButton120("Редактировать профиль","Имя, username, о себе и Telegram-канал",()->profileSettings());
+    settingButton120("Другие сервисы","SoundCloud, Spotify, Яндекс Музыка, BeatChain",()->serviceSettings());
+    section("Тип профиля"); content.addView(profileTypeSelector());
+    section("Оформление"); content.addView(themeToggle120());
+    section("Приватность"); settingButton120("Приватность","Уведомления, видимость профиля и разделов",()->privacyDialog120());
+    section("Данные"); settingButton120("Очистить кэш","Удалить локальные временные данные",()->clearCache120());
+    section("Аккаунт");
+    Button out=button("Выйти из аккаунта",Color.rgb(65,28,40));out.setTextColor(Color.rgb(255,110,130));out.setOnClickListener(v->{supabase.signOut();getPreferences(MODE_PRIVATE).edit().putBoolean("welcome_seen",false).apply();showWelcome();});content.addView(out,new LinearLayout.LayoutParams(-1,dp(50)));
+    Button del=button("Удалить аккаунт",Color.rgb(65,28,40));del.setTextColor(RED);del.setOnClickListener(v->confirmDelete());LinearLayout.LayoutParams delp=new LinearLayout.LayoutParams(-1,dp(50));delp.setMargins(0,dp(8),0,0);content.addView(del,delp);
+  }
+'''
             text = text.substring(0, start) + replacement + text.substring(end)
         def marker = '  private void profileTypeSettings(){'
         if (!text.contains('private void settingButton120(')) {
-            def helpers = '''  private void settingButton120(String title,String sub,View.OnClickListener listener){LinearLayout r=settingRow(title,sub);r.setOnClickListener(v->listener.onClick(v));content.addView(r);}\n  private View themeToggle120(){LinearLayout r=card();r.setGravity(Gravity.CENTER_VERTICAL);r.setPadding(dp(15),dp(11),dp(12),dp(11));LinearLayout c=new LinearLayout(this);c.setOrientation(LinearLayout.VERTICAL);c.addView(txt("Тема",15,TEXT,true));c.addView(txt("Чёрная / белая",11,MUTED,false));r.addView(c,new LinearLayout.LayoutParams(0,-2,1));Switch sw=new Switch(this);sw.setChecked(dark);sw.setOnCheckedChangeListener((button,checked)->{dark=checked;getPreferences(0).edit().putBoolean("dark_theme",checked).apply();configureSystemBars();showSettings();});r.addView(sw,new LinearLayout.LayoutParams(-2,-2));margin(r,0,0,0,7);return r;}\n  private void privacyDialog120(){LinearLayout f=form();Switch n=new Switch(this);n.setText("Уведомления");n.setTextColor(TEXT);n.setChecked(true);Switch h=new Switch(this);h.setText("Скрыть профиль");h.setTextColor(TEXT);Switch m=new Switch(this);m.setText("Скрыть музыкальные разделы");m.setTextColor(TEXT);Switch l=new Switch(this);l.setText("Скрыть понравившуюся музыку");l.setTextColor(TEXT);f.addView(n);f.addView(h);f.addView(m);f.addView(l);new AlertDialog.Builder(this).setTitle("Приватность").setView(f).setNegativeButton("Отмена",null).setPositiveButton("Сохранить",(d,w)->{JsonObject b=new JsonObject();b.addProperty("notifications_enabled",n.isChecked());b.addProperty("is_hidden",h.isChecked()||valUsernameEmpty120());b.addProperty("hide_music_sections",m.isChecked());b.addProperty("hide_liked_music",l.isChecked());supabase.request("PATCH","/rest/v1/profiles?id=eq."+userId,b.toString(),new SupabaseClient.Callback(){public void onSuccess(String s){toast("Настройки приватности сохранены");}public void onError(Exception e){toast("Не удалось сохранить приватность");}});}).show();}\n  private boolean valUsernameEmpty120(){return false;}\n  private void clearCache120(){try{getCacheDir().delete();}catch(Exception ignored){}toast("Кэш очищен");}\n'''
+            def helpers = '''  private void settingButton120(String title,String sub,View.OnClickListener listener){LinearLayout r=settingRow(title,sub);r.setOnClickListener(v->listener.onClick(v));content.addView(r);}
+  private View themeToggle120(){LinearLayout r=card();r.setGravity(Gravity.CENTER_VERTICAL);r.setPadding(dp(15),dp(11),dp(12),dp(11));LinearLayout c=new LinearLayout(this);c.setOrientation(LinearLayout.VERTICAL);c.addView(txt("Тема",15,TEXT,true));c.addView(txt("Чёрная / белая",11,MUTED,false));r.addView(c,new LinearLayout.LayoutParams(0,-2,1));Switch sw=new Switch(this);sw.setChecked(dark);sw.setOnCheckedChangeListener((button,checked)->{dark=checked;getPreferences(0).edit().putBoolean("dark_theme",checked).apply();configureSystemBars();showSettings();});r.addView(sw,new LinearLayout.LayoutParams(-2,-2));margin(r,0,0,0,7);return r;}
+  private void privacyDialog120(){LinearLayout f=form();Switch n=new Switch(this);n.setText("Уведомления");n.setTextColor(TEXT);Switch h=new Switch(this);h.setText("Скрыть профиль");h.setTextColor(TEXT);Switch m=new Switch(this);m.setText("Скрыть музыкальные разделы");m.setTextColor(TEXT);Switch l=new Switch(this);l.setText("Скрыть понравившуюся музыку");l.setTextColor(TEXT);f.addView(n);f.addView(h);f.addView(m);f.addView(l);new AlertDialog.Builder(this).setTitle("Приватность").setView(f).setNegativeButton("Отмена",null).setPositiveButton("Сохранить",(d,w)->{JsonObject b=new JsonObject();b.addProperty("notifications_enabled",n.isChecked());b.addProperty("is_hidden",h.isChecked());b.addProperty("hide_music_sections",m.isChecked());b.addProperty("hide_liked_music",l.isChecked());supabase.request("PATCH","/rest/v1/profiles?id=eq."+userId,b.toString(),new SupabaseClient.Callback(){public void onSuccess(String s){toast("Настройки приватности сохранены");}public void onError(Exception e){toast("Не удалось сохранить приватность");}});}).show();}
+  private void clearCache120(){try{getCacheDir().delete();}catch(Exception ignored){}toast("Кэш очищен");}
+'''
             text = text.replace(marker, helpers + marker)
         source.setText(text, 'UTF-8')
     }
