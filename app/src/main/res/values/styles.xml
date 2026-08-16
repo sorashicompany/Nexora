@@ -4,7 +4,9 @@
         <item name="android:windowLightStatusBar">?android:attr/windowLightStatusBar</item>
         <item name="android:statusBarColor">?android:attr/colorBackground</item>
         <item name="android:navigationBarColor">?android:attr/colorBackground</item>
-        <item name="android:colorAccent">#7D5CFF</item>
+        <item name="android:colorAccent">@color/nexora_accent</item>
         <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowDisablePreview">true</item>
     </style>
 </resources>
