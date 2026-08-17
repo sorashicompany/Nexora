@@ -1,5 +1,5 @@
 name = "nexora-api"
-main = "worker.js"
+main = "worker-entry.js"
 compatibility_date = "2026-08-15"
 
 [vars]
