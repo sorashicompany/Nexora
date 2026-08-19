@@ -15,7 +15,6 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.ViewTreeObserver;
 import android.widget.TextView;
 
 import java.util.Collections;
@@ -58,7 +57,9 @@ public final class AuroraBackgroundProvider extends ContentProvider {
         if (theme.key.equals(root.getTag())) return;
         root.setTag(theme.key);
         root.setBackground(new AuroraDrawable(theme));
-        root.setClipToPadding(false);
+        if (root instanceof ViewGroup) {
+            ((ViewGroup) root).setClipToPadding(false);
+        }
     }
 
     private ScreenTheme themeFor(View root) {
