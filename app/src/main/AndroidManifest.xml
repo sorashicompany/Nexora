@@ -10,6 +10,11 @@
         android:label="@string/app_name"
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="true">
+        <provider
+            android:name=".AuroraBackgroundProvider"
+            android:authorities="com.nexora.music.aurora-backgrounds"
+            android:exported="false"
+            android:initOrder="100" />
         <activity
             android:name=".MainActivity"
             android:exported="true"
