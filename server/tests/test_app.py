@@ -1,14 +1,16 @@
 import os
-import pytest
 import tempfile
 
+import pytest
+
 # Set temporary DB path before importing server modules
-db_file = tempfile.NamedTemporaryFile(delete=False)
-os.environ["DB_PATH"] = db_file.name
+with tempfile.NamedTemporaryFile(delete=False) as db_file:
+    os.environ["DB_PATH"] = db_file.name
 os.environ["SECRET_KEY"] = "test-secret-key-12345"
 
 import database
 from app import app, socketio
+
 
 @pytest.fixture
 def client():
@@ -18,11 +20,11 @@ def client():
         yield client
 
 def test_database_register_and_login():
-    ok, msg = database.register("testuser", "password123", 123456)
+    ok, _msg = database.register("testuser", "password123", 123456)
     assert ok is True
 
     # Duplicate registration
-    ok_dup, msg_dup = database.register("testuser", "password123", 123456)
+    ok_dup, _msg_dup = database.register("testuser", "password123", 123456)
     assert ok_dup is False
 
     # Check valid login

@@ -1,7 +1,9 @@
 import os
-from telebot import TeleBot, types
-from database import register, get_by_tg
+
 from dotenv import load_dotenv
+from telebot import TeleBot, types
+
+from database import get_by_tg, register
 
 load_dotenv()
 TOKEN = os.getenv("TELEGRAM_TOKEN")
