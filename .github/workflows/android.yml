@@ -24,18 +24,28 @@ jobs:
           java-version: '17'
           cache: gradle
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
       - name: Install SDK packages
         run: yes | sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
-      - name: Build Nexora 1.9.0
+      - name: Apply Android UI and Settings patch
+        run: |
+          python3 scripts/patch_android_ui.py
+          python3 scripts/ensure_settings.py
+
+      - name: Build Nexora 1.9.1
         run: ./gradlew --no-daemon assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: nexora-v1.9.0-debug-apk
+          name: nexora-v1.9.1-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
