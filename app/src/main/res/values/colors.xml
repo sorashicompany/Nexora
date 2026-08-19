@@ -1,10 +1,10 @@
 <resources>
-    <color name="nexora_bg">#050A11</color>
-    <color name="nexora_surface">#0F1721</color>
-    <color name="nexora_surface_2">#17212E</color>
-    <color name="nexora_accent">#33D2EE</color>
-    <color name="nexora_text">#F4F8FC</color>
-    <color name="nexora_muted">#8E9DAE</color>
+    <color name="nexora_bg">#060A12</color>
+    <color name="nexora_surface">#101827</color>
+    <color name="nexora_surface_2">#151F31</color>
+    <color name="nexora_accent">#6BE7FF</color>
+    <color name="nexora_text">#F5F8FF</color>
+    <color name="nexora_muted">#93A2B7</color>
     <color name="nexora_success">#41D777</color>
     <color name="nexora_error">#FF5B70</color>
 </resources>
