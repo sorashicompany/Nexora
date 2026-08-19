@@ -128,7 +128,7 @@ new_settings = '''private void showSettings(){
         f.addView(n);f.addView(u);f.addView(b);f.addView(tg);
         new AlertDialog.Builder(this)
             .setTitle("Редактирование профиля")
-            .setMessage("Описание будет показано в твоём публичном профиле.")
+            .setMessage("Описание будет показано в твоём публичном профиле. Максимум 160 символов.")
             .setView(f)
             .setNegativeButton("Отмена",null)
             .setPositiveButton("Сохранить",(d,w)->{
@@ -160,7 +160,7 @@ new_settings = '''private void showSettings(){
         e.setText(saved);
         new AlertDialog.Builder(this)
             .setTitle(title)
-            .setMessage("Укажи только публичную ссылку на профиль. Пароль и OAuth-данные Nexora не запрашивает.")
+            .setMessage("Публичная ссылка. OAuth и пароль не требуются.")
             .setView(e)
             .setNegativeButton(saved.isEmpty()?"Отмена":"Удалить",(d,w)->{
                 if(saved.isEmpty()) return;
@@ -175,6 +175,36 @@ new_settings = '''private void showSettings(){
             }).show();
     }
 
+    private boolean validService(String platform,String url){
+        try{
+            Uri u=Uri.parse(url);String h=u.getHost();
+            if(h==null)return false;
+            String scheme=u.getScheme();
+            if(!"https".equalsIgnoreCase(scheme)&&!"http".equalsIgnoreCase(scheme))return false;
+            h=h.toLowerCase(Locale.US);
+            if(platform.equals("soundcloud"))return h.equals("soundcloud.com")||h.endsWith(".soundcloud.com");
+            if(platform.equals("spotify"))return h.equals("open.spotify.com")||h.equals("spotify.com")||h.endsWith(".spotify.com");
+            if(platform.equals("yandex_music"))return h.equals("music.yandex.ru")||h.equals("music.yandex.com")||h.endsWith(".yandex.ru");
+            if(platform.equals("beatchain"))return h.contains("beatchain");
+            return false;
+        }catch(Exception e){return false;}
+    }
+
+    private void saveService(String platform,String url){
+        JsonObject b=new JsonObject();b.addProperty("profile_id",userId);b.addProperty("platform",platform);b.addProperty("url",url);
+        supabase.request("POST","/rest/v1/social_links?on_conflict=profile_id,platform",b.toString(),new SupabaseClient.Callback(){
+            public void onSuccess(String s){toast("Сервис привязан");}
+            public void onError(Exception e){toast("Не удалось сохранить сервис");}
+        });
+    }
+
+    private void deleteService(String platform){
+        supabase.request("DELETE","/rest/v1/social_links?profile_id=eq."+userId+"&platform=eq."+platform,null,new SupabaseClient.Callback(){
+            public void onSuccess(String s){toast("Сервис удалён");}
+            public void onError(Exception e){toast("Не удалось удалить сервис");}
+        });
+    }
+
     private void privacyDialog(){
         LinearLayout f=form();
         Switch n=new Switch(this);n.setText("Уведомления");n.setTextColor(TEXT);n.setChecked(getPreferences(MODE_PRIVATE).getBoolean("notifications_enabled",true));
@@ -182,40 +212,38 @@ new_settings = '''private void showSettings(){
         Switch m=new Switch(this);m.setText("Скрыть музыкальные разделы");m.setTextColor(TEXT);
         Switch l=new Switch(this);l.setText("Скрыть понравившуюся музыку");l.setTextColor(TEXT);
         f.addView(n);f.addView(h);f.addView(m);f.addView(l);
-        new AlertDialog.Builder(this).setTitle("Приватность").setMessage("Эти параметры влияют на то, что другие пользователи смогут видеть в твоём профиле.").setView(f).setNegativeButton("Отмена",null).setPositiveButton("Сохранить",(d,w)->{
+        new AlertDialog.Builder(this).setTitle("Приватность").setMessage("Эти параметры определяют, какие части профиля и активности доступны другим пользователям.").setView(f).setNegativeButton("Отмена",null).setPositiveButton("Сохранить",(d,w)->{
             getPreferences(MODE_PRIVATE).edit().putBoolean("notifications_enabled",n.isChecked()).apply();
             JsonObject b=new JsonObject();b.addProperty("notifications_enabled",n.isChecked());b.addProperty("is_hidden",h.isChecked());b.addProperty("hide_music_sections",m.isChecked());b.addProperty("hide_liked_music",l.isChecked());
             supabase.request("PATCH","/rest/v1/profiles?id=eq."+userId,b.toString(),new SupabaseClient.Callback(){public void onSuccess(String s){toast("Приватность сохранена");}public void onError(Exception e){toast("Не удалось сохранить приватность");}});
         }).show();
     }
+
+    private LinearLayout profileTypeSelector(){
+        LinearLayout box=card();box.setOrientation(LinearLayout.VERTICAL);box.setPadding(dp(16),dp(8),dp(16),dp(8));
+        addProfileCheck(box,"Исполнитель","artist");addProfileCheck(box,"Битмейкер","beatmaker");return box;
+    }
+    private void addProfileCheck(LinearLayout box,String label,String key){
+        boolean checked=getPreferences(MODE_PRIVATE).getBoolean("profile_"+key,false);LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);
+        TextView t=txt(label,15,TEXT,true);row.addView(t,new LinearLayout.LayoutParams(0,dp(54),1));TextView mark=txt(checked?"✓":"○",25,checked?CYAN:MUTED,true);mark.setGravity(Gravity.CENTER);row.addView(mark,new LinearLayout.LayoutParams(dp(54),dp(54)));
+        row.setOnClickListener(v->{boolean next=!getPreferences(MODE_PRIVATE).getBoolean("profile_"+key,false);getPreferences(MODE_PRIVATE).edit().putBoolean("profile_"+key,next).apply();mark.setText(next?"✓":"○");mark.setTextColor(next?CYAN:MUTED);saveProfileTypes();});box.addView(row);
+    }
+    private void saveProfileTypes(){
+        boolean artist=getPreferences(MODE_PRIVATE).getBoolean("profile_artist",false),beatmaker=getPreferences(MODE_PRIVATE).getBoolean("profile_beatmaker",false);
+        JsonObject b=new JsonObject();b.addProperty("is_artist",artist);b.addProperty("is_beatmaker",beatmaker);b.addProperty("profile_type",artist&&beatmaker?"artist_beatmaker":artist?"artist":beatmaker?"beatmaker":"user");
+        supabase.request("PATCH","/rest/v1/profiles?id=eq."+userId,b.toString(),new SupabaseClient.Callback(){public void onSuccess(String s){toast("Тип профиля сохранён");}public void onError(Exception e){toast("Не удалось сохранить тип профиля");}});
+    }
 '''
 
-s=replace_method(s,'private void showSettings()',new_settings)
-
-# Make the public profile actually render the saved description.
-needle='private void showProfile()'
-if needle not in s:
-    raise SystemExit('missing showProfile')
-
-# Add a small reusable profile-description renderer before showProfile.
-desc_helper='''private void addProfileDescription(JsonObject p){String bio=val(p,"bio").trim();if(!bio.isEmpty()){section("О себе");TextView d=txt(bio,14,TEXT,false);d.setLineSpacing(dp(2),1.05f);d.setPadding(dp(14),dp(12),dp(14),dp(12));d.setBackground(gradient(SURFACE2,Color.rgb(28,40,57),18));content.addView(d);}}\n    '''
-s=s.replace(needle,desc_helper+needle,1)
-
-# The existing profile methods vary between revisions; insert the renderer after the
-# first profile payload is loaded if the exact line is present.
-profile_payload='JsonObject p=a.get(0).getAsJsonObject();'
-if profile_payload in s:
-    s=s.replace(profile_payload,profile_payload+'addProfileDescription(p);',1)
-
-# Keep the existing helper methods from this patch available.
-for marker, body in [
-('private LinearLayout profileTypeSelector()', '''private LinearLayout profileTypeSelector(){LinearLayout box=card();box.setOrientation(LinearLayout.VERTICAL);box.setPadding(dp(16),dp(8),dp(16),dp(8));addProfileCheck(box,"Исполнитель","artist",getPreferences(MODE_PRIVATE).getBoolean("profile_artist",false));addProfileCheck(box,"Битмейкер","beatmaker",getPreferences(MODE_PRIVATE).getBoolean("profile_beatmaker",false));return box;}'''),
-('private void addProfileCheck(', '''private void addProfileCheck(LinearLayout box,String label,String key,boolean checked){LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);TextView t=txt(label,15,TEXT,true);row.addView(t,new LinearLayout.LayoutParams(0,dp(54),1));TextView mark=txt(checked?"✓":"○",25,checked?CYAN:MUTED,true);mark.setGravity(Gravity.CENTER);row.addView(mark,new LinearLayout.LayoutParams(dp(54),dp(54)));row.setOnClickListener(v->{boolean next=!getPreferences(MODE_PRIVATE).getBoolean("profile_"+key,false);getPreferences(MODE_PRIVATE).edit().putBoolean("profile_"+key,next).apply();mark.setText(next?"✓":"○");mark.setTextColor(next?CYAN:MUTED);saveProfileTypes();});box.addView(row);}'''),
-('private void saveProfileTypes()', '''private void saveProfileTypes(){boolean artist=getPreferences(MODE_PRIVATE).getBoolean("profile_artist",false),beatmaker=getPreferences(MODE_PRIVATE).getBoolean("profile_beatmaker",false);JsonObject b=new JsonObject();b.addProperty("is_artist",artist);b.addProperty("is_beatmaker",beatmaker);b.addProperty("profile_type",artist&&beatmaker?"artist_beatmaker":artist?"artist":beatmaker?"beatmaker":"user");supabase.request("PATCH","/rest/v1/profiles?id=eq."+userId,b.toString(),new SupabaseClient.Callback(){public void onSuccess(String s){toast("Тип профиля сохранён");}public void onError(Exception e){toast("Не удалось сохранить тип профиля");}});}'''),
-('private boolean validServiceUrl(', '''private boolean validServiceUrl(String platform,String url){try{Uri u=Uri.parse(url);String h=u.getHost();if(h==null||!(u.getScheme().equalsIgnoreCase("https")||u.getScheme().equalsIgnoreCase("http")))return false;h=h.toLowerCase(Locale.US);if(platform.equals("soundcloud"))return h.equals("soundcloud.com")||h.endsWith(".soundcloud.com");if(platform.equals("spotify"))return h.equals("open.spotify.com")||h.equals("spotify.com")||h.endsWith(".spotify.com");if(platform.equals("yandex_music"))return h.equals("music.yandex.ru")||h.equals("music.yandex.com")||h.endsWith(".yandex.ru");if(platform.equals("beatchain"))return h.contains("beatchain");return false;}catch(Exception e){return false;}}'''),
-('private void saveService(', '''private void saveService(String platform,String url){JsonObject b=new JsonObject();b.addProperty("profile_id",userId);b.addProperty("platform",platform);b.addProperty("url",url);supabase.request("POST","/rest/v1/social_links?on_conflict=profile_id,platform",b.toString(),new SupabaseClient.Callback(){public void onSuccess(String s){toast("Сервис привязан");}public void onError(Exception e){toast("Не удалось сохранить сервис");}});}'''),
-('private void deleteService(', '''private void deleteService(String platform){supabase.request("DELETE","/rest/v1/social_links?profile_id=eq."+userId+"&platform=eq."+platform,null,new SupabaseClient.Callback(){public void onSuccess(String s){toast("Сервис удалён");}public void onError(Exception e){toast("Не удалось удалить сервис");}});}''')]:
-    if marker not in s:
-        s=body+'\n    '+s
+# Be tolerant of a previously generated MainActivity that no longer contains
+# showSettings. The settings workflow is also responsible for installing the
+# canonical implementation, so append it inside the class instead of failing.
+if 'private void showSettings()' in s:
+    s=replace_method(s,'private void showSettings()',new_settings)
+else:
+    end=s.rfind('}')
+    if end<0:
+        raise SystemExit('missing MainActivity closing brace')
+    s=s[:end]+"\n    "+new_settings+"\n"+s[end:]
 
 p.write_text(s)
