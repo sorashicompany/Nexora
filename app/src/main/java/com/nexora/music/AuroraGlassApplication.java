@@ -135,7 +135,7 @@ public final class AuroraGlassApplication extends Application {
 
         if (view instanceof ScrollView) {
             view.setBackgroundColor(Color.TRANSPARENT);
-            view.setClipToPadding(false);
+            if (view instanceof ViewGroup) ((ViewGroup) view).setClipToPadding(false);
         }
 
         if (view instanceof EditText) styleEditText(a, (EditText) view);
