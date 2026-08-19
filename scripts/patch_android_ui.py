@@ -6,47 +6,216 @@ s = p.read_text()
 
 def replace_method(src, signature, replacement):
     start = src.find(signature)
-    if start < 0: raise SystemExit(f'missing {signature}')
+    if start < 0:
+        raise SystemExit(f'missing {signature}')
     brace = src.find('{', start)
     depth = 0
     for i in range(brace, len(src)):
-        if src[i] == '{': depth += 1
+        if src[i] == '{':
+            depth += 1
         elif src[i] == '}':
             depth -= 1
-            if depth == 0: return src[:start] + replacement + src[i + 1:]
+            if depth == 0:
+                return src[:start] + replacement + src[i + 1:]
     raise SystemExit(f'unclosed {signature}')
 
 
 def remove_all_methods(src, signature):
-    while signature in src: src = replace_method(src, signature, '')
+    while signature in src:
+        src = replace_method(src, signature, '')
     return src
 
-for sig in ['private LinearLayout profileTypeSelector()','private void addProfileCheck(','private void saveProfileTypes()','private View serviceSettingsRow(','private LinearLayout serviceSettingsRow(','private void editPublicService(','private boolean validServiceUrl(','private void saveService(','private void deleteService(','private String visibleProfileTypes(','private ImageView icon(']:
+# Keep the patch idempotent: remove old settings helpers before inserting the
+# current implementation.
+for sig in [
+    'private LinearLayout profileTypeSelector()',
+    'private void addProfileCheck(',
+    'private void saveProfileTypes()',
+    'private View serviceSettingsRow(',
+    'private LinearLayout serviceSettingsRow(',
+    'private void editPublicService(',
+    'private boolean validServiceUrl(',
+    'private void saveService(',
+    'private void deleteService(',
+    'private String visibleProfileTypes(',
+    'private ImageView icon('
+]:
     s = remove_all_methods(s, sig)
 
-s = s.replace('LinearLayout scCard=serviceCard(', 'View scCard=serviceCard(')
-s = s.replace('LinearLayout bcCard=serviceCard(', 'View bcCard=serviceCard(')
+new_settings = '''private void showSettings(){
+        shell("Настройки",2);
+        section("Профиль");
+        settingButton("Редактировать профиль","Имя, username, описание и Telegram-канал",v->profileSettings());
+        settingButton("Музыкальные сервисы","Публичные ссылки на SoundCloud, Spotify, Яндекс Музыку и BeatChain",v->serviceSettings());
 
-new_settings = '''private void showSettings(){showShell("Настройки",2);TextView kicker=text("NEXORA • STUDIO",11,CYAN,true);kicker.setPadding(0,dp(8),0,dp(2));content.addView(kicker);sectionTitle("Настройки");content.addView(setting("Воспроизведение","Автовоспроизведение превью","ON"));content.addView(setting("Качество аудио","Высокое качество","›"));content.addView(setting("Уведомления","Сообщения и новые релизы","ON"));sectionTitle("Тип профиля");content.addView(profileTypeSelector());sectionTitle("Музыкальные сервисы");content.addView(serviceSettingsRow("SoundCloud","Публичная ссылка на профиль","soundcloud",CYAN));content.addView(serviceSettingsRow("Spotify","Публичная ссылка на профиль","spotify",GREEN));content.addView(serviceSettingsRow("Яндекс Музыка","Публичная ссылка на профиль","yandex_music",VIOLET));content.addView(serviceSettingsRow("BeatChain","Публичная ссылка на профиль битмейкера","beatchain",BLUE));sectionTitle("Аккаунт");content.addView(setting("Приватность","Контроль видимости профиля","›"));content.addView(setting("Telegram","Используется только для входа","✓"));content.addView(spacer(12));Button out=button("Выйти из аккаунта",Color.rgb(65,28,40));out.setTextColor(Color.rgb(255,110,130));out.setOnClickListener(v->{supabase.signOut();getPreferences(MODE_PRIVATE).edit().putBoolean("welcome_seen",false).apply();showWelcome();});content.addView(out,new LinearLayout.LayoutParams(-1,dp(50)));}'''
-s = replace_method(s, 'private void showSettings()', new_settings)
+        section("Оформление");
+        LinearLayout theme=settingRow("Тёмная тема","Комфортный интерфейс Aurora Glass");
+        Switch sw=new Switch(this);
+        sw.setChecked(dark);
+        sw.setOnCheckedChangeListener((button,checked)->{
+            if (dark==checked) return;
+            dark=checked;
+            getPreferences(MODE_PRIVATE).edit().putBoolean("dark_theme",checked).apply();
+            configureSystemBars();
+            showSettings();
+        });
+        theme.addView(sw,new LinearLayout.LayoutParams(-2,-2));
+        content.addView(theme);
 
-helpers = '''private LinearLayout profileTypeSelector(){LinearLayout box=card();box.setOrientation(LinearLayout.VERTICAL);box.setPadding(dp(16),dp(8),dp(16),dp(8));addProfileCheck(box,"Исполнитель","artist",getPreferences(MODE_PRIVATE).getBoolean("profile_artist",false));addProfileCheck(box,"Битмейкер","beatmaker",getPreferences(MODE_PRIVATE).getBoolean("profile_beatmaker",false));return box;}
-    private void addProfileCheck(LinearLayout box,String label,String key,boolean checked){LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);TextView t=text(label,15,TEXT,true);row.addView(t,new LinearLayout.LayoutParams(0,dp(54),1));TextView mark=text(checked?"✓":"○",25,checked?CYAN:MUTED,true);mark.setGravity(Gravity.CENTER);row.addView(mark,new LinearLayout.LayoutParams(dp(54),dp(54)));row.setOnClickListener(v->{boolean next=!getPreferences(MODE_PRIVATE).getBoolean("profile_"+key,false);getPreferences(MODE_PRIVATE).edit().putBoolean("profile_"+key,next).apply();mark.setText(next?"✓":"○");mark.setTextColor(next?CYAN:MUTED);saveProfileTypes();});box.addView(row);}
-    private void saveProfileTypes(){boolean artist=getPreferences(MODE_PRIVATE).getBoolean("profile_artist",false),beatmaker=getPreferences(MODE_PRIVATE).getBoolean("profile_beatmaker",false);JsonObject b=new JsonObject();b.addProperty("is_artist",artist);b.addProperty("is_beatmaker",beatmaker);b.addProperty("profile_type",artist&&beatmaker?"artist_beatmaker":artist?"artist":beatmaker?"beatmaker":"user");supabase.request("PATCH","/rest/v1/profiles?id=eq."+userId,b.toString(),new SupabaseClient.Callback(){public void onSuccess(String s){toast("Тип профиля сохранён");}public void onError(Exception e){toast("Не удалось сохранить тип профиля");}});}
-    private View serviceSettingsRow(String title,String subtitle,String platform,int accent){View row=serviceCard(title,subtitle,accent);row.setOnClickListener(v->editPublicService(platform,title));return row;}
-    private void editPublicService(String platform,String title){final EditText input=input("https://");String saved=getPreferences(MODE_PRIVATE).getString("service_"+platform,"");input.setText(saved);new AlertDialog.Builder(this).setTitle(title).setView(input).setNegativeButton("Удалить",(d,w)->{getPreferences(MODE_PRIVATE).edit().remove("service_"+platform).apply();deleteService(platform);}).setPositiveButton("Сохранить",(d,w)->{String url=input.getText().toString().trim();if(!validServiceUrl(platform,url)){toast("Неверная ссылка для "+title);return;}getPreferences(MODE_PRIVATE).edit().putString("service_"+platform,url).apply();saveService(platform,url);}).show();}
-    private boolean validServiceUrl(String platform,String url){try{Uri u=Uri.parse(url);String h=u.getHost();if(h==null)return false;h=h.toLowerCase();if(platform.equals("soundcloud"))return h.equals("soundcloud.com")||h.endsWith(".soundcloud.com");if(platform.equals("spotify"))return h.equals("open.spotify.com")||h.equals("spotify.com")||h.endsWith(".spotify.com");if(platform.equals("yandex_music"))return h.equals("music.yandex.ru")||h.equals("music.yandex.com")||h.endsWith(".yandex.ru");if(platform.equals("beatchain"))return h.contains("beatchain");return false;}catch(Exception e){return false;}}
-    private void saveService(String platform,String url){JsonObject b=new JsonObject();b.addProperty("profile_id",userId);b.addProperty("platform",platform);b.addProperty("url",url);supabase.request("POST","/rest/v1/social_links?on_conflict=profile_id,platform",b.toString(),new SupabaseClient.Callback(){public void onSuccess(String s){toast("Сервис привязан");}public void onError(Exception e){toast("Не удалось сохранить сервис");}});}
-    private void deleteService(String platform){supabase.request("DELETE","/rest/v1/social_links?profile_id=eq."+userId+"&platform=eq."+platform,null,new SupabaseClient.Callback(){public void onSuccess(String s){toast("Сервис удалён");}public void onError(Exception e){toast("Не удалось удалить сервис");}});}
-    private String visibleProfileTypes(JsonObject p){boolean artist=p.has("is_artist")&&!p.get("is_artist").isJsonNull()&&p.get("is_artist").getAsBoolean();boolean beatmaker=p.has("is_beatmaker")&&!p.get("is_beatmaker").isJsonNull()&&p.get("is_beatmaker").getAsBoolean();if(artist&&beatmaker)return "Исполнитель • Битмейкер";if(artist)return "Исполнитель";if(beatmaker)return "Битмейкер";return "";}
-    private ImageView icon(int res,int tint){ImageView v=new ImageView(this);v.setImageResource(res);v.setColorFilter(tint);v.setScaleType(ImageView.ScaleType.CENTER);return v;}
-    '''
-marker='private void showProfile()'
-if marker not in s: raise SystemExit('missing showProfile marker')
-s=s.replace(marker,helpers+marker,1)
-s=s.replace('String type=p.has("profile_type")&&!p.get("profile_type").isJsonNull()?p.get("profile_type").getAsString():"user";','String type=visibleProfileTypes(p);',1)
-s=s.replace('profileTypeLabel(type)','type')
-needle='JsonObject p=a.get(0).getAsJsonObject();'
-replacement='JsonObject p=a.get(0).getAsJsonObject();if(p.has("is_artist"))getPreferences(MODE_PRIVATE).edit().putBoolean("profile_artist",p.get("is_artist").getAsBoolean()).putBoolean("profile_beatmaker",p.has("is_beatmaker")&&p.get("is_beatmaker").getAsBoolean()).apply();'
-s=s.replace(needle,replacement,1)
+        section("Тип профиля");
+        content.addView(profileTypeSelector());
+
+        section("Приватность");
+        settingButton("Приватность","Уведомления, видимость профиля, музыкальные разделы и понравившиеся треки",v->privacyDialog());
+
+        section("Данные");
+        settingButton("Очистить локальные данные","Удаляет только локальные заметки и временные данные этого устройства",v->confirmClearLocalData());
+
+        section("Аккаунт");
+        Button out=button("Выйти из аккаунта",Color.rgb(65,28,40));
+        out.setTextColor(RED);
+        out.setOnClickListener(v->{
+            supabase.signOut();
+            getPreferences(MODE_PRIVATE).edit().clear().apply();
+            showWelcome();
+        });
+        content.addView(out,new LinearLayout.LayoutParams(-1,dp(50)));
+
+        Button del=button("Удалить аккаунт",Color.rgb(55,25,30));
+        del.setTextColor(RED);
+        del.setOnClickListener(v->confirmDelete());
+        LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,dp(50));
+        p.setMargins(0,dp(8),0,0);
+        content.addView(del,p);
+    }
+
+    private void confirmClearLocalData(){
+        new AlertDialog.Builder(this)
+            .setTitle("Очистить локальные данные?")
+            .setMessage("Будут удалены только сохранённые заметки и локальные настройки Nexora на этом устройстве. Профиль, чаты и музыка в аккаунте не удаляются.")
+            .setNegativeButton("Отмена",null)
+            .setPositiveButton("Очистить",(d,w)->{
+                boolean keepDark=getPreferences(MODE_PRIVATE).getBoolean("dark_theme",true);
+                getPreferences(MODE_PRIVATE).edit().clear().putBoolean("dark_theme",keepDark).apply();
+                toast("Локальные данные очищены");
+                showSettings();
+            }).show();
+    }
+
+    private void profileSettings(){
+        supabase.getCurrentProfile(new SupabaseClient.Callback(){
+            public void onSuccess(String s){
+                try{
+                    JsonArray a=JsonParser.parseString(s).getAsJsonArray();
+                    if(a.size()>0) runOnUiThread(()->profileDialog(a.get(0).getAsJsonObject()));
+                    else toast("Профиль не найден");
+                }catch(Exception e){toast("Не удалось загрузить профиль");}
+            }
+            public void onError(Exception e){toast("Не удалось загрузить профиль");}
+        });
+    }
+
+    private void profileDialog(JsonObject p){
+        LinearLayout f=form();
+        EditText n=field("Имя",val(p,"display_name"));
+        EditText u=field("Username",val(p,"username"));
+        EditText b=field("Описание",val(p,"bio"));
+        b.setHint("Расскажи о себе, музыке или проекте");
+        b.setMinLines(3);
+        b.setMaxLines(5);
+        b.setGravity(Gravity.TOP|Gravity.START);
+        EditText tg=field("Telegram-канал",val(p,"telegram_channel_url"));
+        f.addView(n);f.addView(u);f.addView(b);f.addView(tg);
+        new AlertDialog.Builder(this)
+            .setTitle("Редактирование профиля")
+            .setMessage("Описание будет показано в твоём публичном профиле.")
+            .setView(f)
+            .setNegativeButton("Отмена",null)
+            .setPositiveButton("Сохранить",(d,w)->{
+                String un=u.getText().toString().trim().replace("@","");
+                String bio=b.getText().toString().trim();
+                if(bio.length()>160){toast("Описание не должно быть длиннее 160 символов");return;}
+                JsonObject body=new JsonObject();
+                body.addProperty("display_name",n.getText().toString().trim());
+                if(un.isEmpty()) body.add("username",JsonNull.INSTANCE); else body.addProperty("username",un);
+                body.addProperty("bio",bio);
+                body.addProperty("telegram_channel_url",tg.getText().toString().trim());
+                body.addProperty("is_hidden",un.isEmpty());
+                supabase.request("PATCH","/rest/v1/profiles?id=eq."+userId,body.toString(),new SupabaseClient.Callback(){
+                    public void onSuccess(String s){toast("Профиль сохранён");showProfile();}
+                    public void onError(Exception e){toast("Не удалось сохранить профиль");}
+                });
+            }).show();
+    }
+
+    private void serviceSettings(){
+        String[] names={"SoundCloud","Spotify","Яндекс Музыка","BeatChain"};
+        String[] platforms={"soundcloud","spotify","yandex_music","beatchain"};
+        new AlertDialog.Builder(this).setTitle("Музыкальные сервисы").setItems(names,(d,w)->editService(platforms[w],names[w])).show();
+    }
+
+    private void editService(String platform,String title){
+        EditText e=input("https://...");
+        String saved=getPreferences(MODE_PRIVATE).getString("service_"+platform,"");
+        e.setText(saved);
+        new AlertDialog.Builder(this)
+            .setTitle(title)
+            .setMessage("Укажи только публичную ссылку на профиль. Пароль и OAuth-данные Nexora не запрашивает.")
+            .setView(e)
+            .setNegativeButton(saved.isEmpty()?"Отмена":"Удалить",(d,w)->{
+                if(saved.isEmpty()) return;
+                getPreferences(MODE_PRIVATE).edit().remove("service_"+platform).apply();
+                deleteService(platform);
+            })
+            .setPositiveButton("Сохранить",(d,w)->{
+                String u=e.getText().toString().trim();
+                if(!validService(platform,u)){toast("Неверная ссылка для "+title);return;}
+                getPreferences(MODE_PRIVATE).edit().putString("service_"+platform,u).apply();
+                saveService(platform,u);
+            }).show();
+    }
+
+    private void privacyDialog(){
+        LinearLayout f=form();
+        Switch n=new Switch(this);n.setText("Уведомления");n.setTextColor(TEXT);n.setChecked(getPreferences(MODE_PRIVATE).getBoolean("notifications_enabled",true));
+        Switch h=new Switch(this);h.setText("Скрыть профиль");h.setTextColor(TEXT);
+        Switch m=new Switch(this);m.setText("Скрыть музыкальные разделы");m.setTextColor(TEXT);
+        Switch l=new Switch(this);l.setText("Скрыть понравившуюся музыку");l.setTextColor(TEXT);
+        f.addView(n);f.addView(h);f.addView(m);f.addView(l);
+        new AlertDialog.Builder(this).setTitle("Приватность").setMessage("Эти параметры влияют на то, что другие пользователи смогут видеть в твоём профиле.").setView(f).setNegativeButton("Отмена",null).setPositiveButton("Сохранить",(d,w)->{
+            getPreferences(MODE_PRIVATE).edit().putBoolean("notifications_enabled",n.isChecked()).apply();
+            JsonObject b=new JsonObject();b.addProperty("notifications_enabled",n.isChecked());b.addProperty("is_hidden",h.isChecked());b.addProperty("hide_music_sections",m.isChecked());b.addProperty("hide_liked_music",l.isChecked());
+            supabase.request("PATCH","/rest/v1/profiles?id=eq."+userId,b.toString(),new SupabaseClient.Callback(){public void onSuccess(String s){toast("Приватность сохранена");}public void onError(Exception e){toast("Не удалось сохранить приватность");}});
+        }).show();
+    }
+'''
+
+s=replace_method(s,'private void showSettings()',new_settings)
+
+# Make the public profile actually render the saved description.
+needle='private void showProfile()'
+if needle not in s:
+    raise SystemExit('missing showProfile')
+
+# Add a small reusable profile-description renderer before showProfile.
+desc_helper='''private void addProfileDescription(JsonObject p){String bio=val(p,"bio").trim();if(!bio.isEmpty()){section("О себе");TextView d=txt(bio,14,TEXT,false);d.setLineSpacing(dp(2),1.05f);d.setPadding(dp(14),dp(12),dp(14),dp(12));d.setBackground(gradient(SURFACE2,Color.rgb(28,40,57),18));content.addView(d);}}\n    '''
+s=s.replace(needle,desc_helper+needle,1)
+
+# The existing profile methods vary between revisions; insert the renderer after the
+# first profile payload is loaded if the exact line is present.
+profile_payload='JsonObject p=a.get(0).getAsJsonObject();'
+if profile_payload in s:
+    s=s.replace(profile_payload,profile_payload+'addProfileDescription(p);',1)
+
+# Keep the existing helper methods from this patch available.
+for marker, body in [
+('private LinearLayout profileTypeSelector()', '''private LinearLayout profileTypeSelector(){LinearLayout box=card();box.setOrientation(LinearLayout.VERTICAL);box.setPadding(dp(16),dp(8),dp(16),dp(8));addProfileCheck(box,"Исполнитель","artist",getPreferences(MODE_PRIVATE).getBoolean("profile_artist",false));addProfileCheck(box,"Битмейкер","beatmaker",getPreferences(MODE_PRIVATE).getBoolean("profile_beatmaker",false));return box;}'''),
+('private void addProfileCheck(', '''private void addProfileCheck(LinearLayout box,String label,String key,boolean checked){LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);TextView t=txt(label,15,TEXT,true);row.addView(t,new LinearLayout.LayoutParams(0,dp(54),1));TextView mark=txt(checked?"✓":"○",25,checked?CYAN:MUTED,true);mark.setGravity(Gravity.CENTER);row.addView(mark,new LinearLayout.LayoutParams(dp(54),dp(54)));row.setOnClickListener(v->{boolean next=!getPreferences(MODE_PRIVATE).getBoolean("profile_"+key,false);getPreferences(MODE_PRIVATE).edit().putBoolean("profile_"+key,next).apply();mark.setText(next?"✓":"○");mark.setTextColor(next?CYAN:MUTED);saveProfileTypes();});box.addView(row);}'''),
+('private void saveProfileTypes()', '''private void saveProfileTypes(){boolean artist=getPreferences(MODE_PRIVATE).getBoolean("profile_artist",false),beatmaker=getPreferences(MODE_PRIVATE).getBoolean("profile_beatmaker",false);JsonObject b=new JsonObject();b.addProperty("is_artist",artist);b.addProperty("is_beatmaker",beatmaker);b.addProperty("profile_type",artist&&beatmaker?"artist_beatmaker":artist?"artist":beatmaker?"beatmaker":"user");supabase.request("PATCH","/rest/v1/profiles?id=eq."+userId,b.toString(),new SupabaseClient.Callback(){public void onSuccess(String s){toast("Тип профиля сохранён");}public void onError(Exception e){toast("Не удалось сохранить тип профиля");}});}'''),
+('private boolean validServiceUrl(', '''private boolean validServiceUrl(String platform,String url){try{Uri u=Uri.parse(url);String h=u.getHost();if(h==null||!(u.getScheme().equalsIgnoreCase("https")||u.getScheme().equalsIgnoreCase("http")))return false;h=h.toLowerCase(Locale.US);if(platform.equals("soundcloud"))return h.equals("soundcloud.com")||h.endsWith(".soundcloud.com");if(platform.equals("spotify"))return h.equals("open.spotify.com")||h.equals("spotify.com")||h.endsWith(".spotify.com");if(platform.equals("yandex_music"))return h.equals("music.yandex.ru")||h.equals("music.yandex.com")||h.endsWith(".yandex.ru");if(platform.equals("beatchain"))return h.contains("beatchain");return false;}catch(Exception e){return false;}}'''),
+('private void saveService(', '''private void saveService(String platform,String url){JsonObject b=new JsonObject();b.addProperty("profile_id",userId);b.addProperty("platform",platform);b.addProperty("url",url);supabase.request("POST","/rest/v1/social_links?on_conflict=profile_id,platform",b.toString(),new SupabaseClient.Callback(){public void onSuccess(String s){toast("Сервис привязан");}public void onError(Exception e){toast("Не удалось сохранить сервис");}});}'''),
+('private void deleteService(', '''private void deleteService(String platform){supabase.request("DELETE","/rest/v1/social_links?profile_id=eq."+userId+"&platform=eq."+platform,null,new SupabaseClient.Callback(){public void onSuccess(String s){toast("Сервис удалён");}public void onError(Exception e){toast("Не удалось удалить сервис");}});}''')]:
+    if marker not in s:
+        s=body+'\n    '+s
+
 p.write_text(s)
