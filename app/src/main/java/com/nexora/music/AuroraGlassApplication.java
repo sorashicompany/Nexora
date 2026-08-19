@@ -37,7 +37,6 @@ public final class AuroraGlassApplication extends Application {
     private static final int MUTED = Color.rgb(147, 162, 183);
     private static final int GREEN = Color.rgb(91, 225, 154);
     private static final int RED = Color.rgb(255, 105, 128);
-    private static final int WHITE = Color.WHITE;
     private static final Handler MAIN = new Handler(Looper.getMainLooper());
 
     @Override public void onCreate() {
@@ -106,9 +105,7 @@ public final class AuroraGlassApplication extends Application {
     private void styleSystemBars(Activity activity) {
         activity.getWindow().setStatusBarColor(BG);
         activity.getWindow().setNavigationBarColor(BG);
-        if (android.os.Build.VERSION.SDK_INT >= 23) {
-            activity.getWindow().getDecorView().setSystemUiVisibility(0);
-        }
+        if (android.os.Build.VERSION.SDK_INT >= 23) activity.getWindow().getDecorView().setSystemUiVisibility(0);
     }
 
     private void styleNav(Activity a, LinearLayout nav) {
@@ -141,46 +138,26 @@ public final class AuroraGlassApplication extends Application {
             view.setClipToPadding(false);
         }
 
-        if (view instanceof EditText) {
-            styleEditText(a, (EditText) view);
-        } else if (view instanceof Button) {
-            styleButton(a, (Button) view);
-        } else if (view instanceof TextView) {
-            styleText(a, (TextView) view);
-        }
-
-        if (view instanceof ImageView) {
-            ImageView image = (ImageView) view;
-            image.setColorFilter(null);
-        }
+        if (view instanceof EditText) styleEditText(a, (EditText) view);
+        else if (view instanceof Button) styleButton(a, (Button) view);
+        else if (view instanceof TextView) styleText(a, (TextView) view);
 
         if (view instanceof ViewGroup) {
             ViewGroup group = (ViewGroup) view;
             boolean rootLike = depth <= 1;
             boolean cardLike = isCardLike(group);
-
             if (!rootLike && cardLike) {
-                int fill = chooseSurface(group);
-                group.setBackground(glass(fill, 18, 100));
+                group.setBackground(glass(chooseSurface(group), 18, 100));
                 group.setElevation(dp(a, 1));
             }
-
-            for (int i = 0; i < group.getChildCount(); i++) {
-                skinTree(a, group.getChildAt(i), depth + 1);
-            }
-
-            if (cardLike) {
-                addGlassSpacing(a, group);
-            }
+            for (int i = 0; i < group.getChildCount(); i++) skinTree(a, group.getChildAt(i), depth + 1);
+            if (cardLike) addGlassSpacing(a, group);
         }
     }
 
     private boolean isCardLike(ViewGroup group) {
-        if (group.getChildCount() == 0) return false;
-        if (group instanceof ScrollView) return false;
-        if (hasClassName(group, "nav") || hasClassName(group, "content")) return false;
+        if (group.getChildCount() == 0 || group instanceof ScrollView) return false;
         if (group.getParent() instanceof ScrollView && group.getChildCount() > 8) return false;
-
         int textCount = 0;
         int imageCount = 0;
         for (int i = 0; i < group.getChildCount(); i++) {
@@ -193,9 +170,7 @@ public final class AuroraGlassApplication extends Application {
 
     private int chooseSurface(ViewGroup group) {
         String text = flattenText(group).toLowerCase();
-        if (text.contains("now playing") || text.contains("afterglow") || text.contains("плеер") || text.contains("музык")) {
-            return SURFACE_2;
-        }
+        if (text.contains("now playing") || text.contains("afterglow") || text.contains("плеер") || text.contains("музык")) return SURFACE_2;
         if (text.contains("ошиб") || text.contains("не удалось")) return Color.rgb(39, 25, 38);
         return SURFACE;
     }
@@ -204,18 +179,15 @@ public final class AuroraGlassApplication extends Application {
         text.setIncludeFontPadding(false);
         String value = text.getText() == null ? "" : text.getText().toString().trim();
         if (value.isEmpty()) return;
-
         float size = text.getTextSize() / a.getResources().getDisplayMetrics().scaledDensity;
         boolean heading = size >= 18 || value.equalsIgnoreCase("NEXORA") || isHeading(value);
         boolean accent = value.equalsIgnoreCase("See all") || value.equalsIgnoreCase("В сети") || value.equalsIgnoreCase("● в сети") || value.contains("online");
         boolean negative = value.toLowerCase().contains("ошиб") || value.toLowerCase().contains("удалить");
-
         if (accent) text.setTextColor(ACCENT);
         else if (negative) text.setTextColor(RED);
         else if (heading) text.setTextColor(TEXT);
         else if (value.startsWith("●")) text.setTextColor(GREEN);
         else text.setTextColor(MUTED);
-
         if (heading) text.setTypeface(Typeface.create("sans-serif", Typeface.BOLD));
     }
 
@@ -228,7 +200,6 @@ public final class AuroraGlassApplication extends Application {
     private void styleEditText(Activity a, EditText edit) {
         edit.setTextColor(TEXT);
         edit.setHintTextColor(MUTED);
-        edit.setSingleLine(edit.getInputType() != android.text.InputType.TYPE_CLASS_TEXT || edit.getMaxLines() <= 1);
         edit.setPadding(dp(a, 16), dp(a, 11), dp(a, 16), dp(a, 11));
         edit.setBackground(glass(SURFACE_2, 15, 100));
     }
@@ -263,14 +234,11 @@ public final class AuroraGlassApplication extends Application {
             if (t.getText() == null) continue;
             String s = t.getText().toString();
             if (s.equals("Чаты") || s.equals("Друзья") || s.equals("Профиль") || s.equals("Настройки") || s.equals("Поиск")) {
-                return t.getCurrentTextColor() == ACCENT || t.getCurrentTextColor() == Color.rgb(51, 210, 238);
+                int color = t.getCurrentTextColor();
+                return color == ACCENT || color == Color.rgb(51, 210, 238);
             }
         }
         return false;
-    }
-
-    private boolean hasClassName(ViewGroup group, String name) {
-        return group.getTag() != null && String.valueOf(group.getTag()).toLowerCase().contains(name);
     }
 
     private String flattenText(ViewGroup group) {
@@ -291,13 +259,10 @@ public final class AuroraGlassApplication extends Application {
 
     private static GradientDrawable glass(int color, int radius, int alpha) {
         GradientDrawable d = new GradientDrawable();
-        if (Color.alpha(color) == 255 && alpha < 100) {
-            d.setColor(Color.argb(Math.round(255f * alpha / 100f), Color.red(color), Color.green(color), Color.blue(color)));
-        } else {
-            d.setColor(color);
-        }
+        if (Color.alpha(color) == 255 && alpha < 100) d.setColor(Color.argb(Math.round(255f * alpha / 100f), Color.red(color), Color.green(color), Color.blue(color)));
+        else d.setColor(color);
         d.setCornerRadius(radius);
-        d.setStroke(1, Color.argb(38, WHITE, WHITE, WHITE));
+        d.setStroke(1, Color.argb(38, 255, 255, 255));
         return d;
     }
 
