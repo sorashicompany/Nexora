@@ -23,20 +23,11 @@ import java.util.List;
 /**
  * Nexora Aurora Glass design system.
  *
- * The application keeps the existing MainActivity/business logic intact and
- * applies a consistent visual language to every screen: auth, chats, friends,
- * profile, search, settings, music/player and secondary flows.
+ * The existing MainActivity/business logic stays intact. This layer provides
+ * adaptive themes and consistently styles auth, chats, friends, profiles,
+ * search, settings, music/player and secondary flows.
  */
 public final class AuroraGlassApplication extends Application {
-    private static final int BG = Color.rgb(6, 10, 18);
-    private static final int SURFACE = Color.rgb(16, 24, 39);
-    private static final int SURFACE_2 = Color.rgb(21, 31, 49);
-    private static final int SURFACE_3 = Color.rgb(26, 38, 58);
-    private static final int ACCENT = Color.rgb(107, 231, 255);
-    private static final int TEXT = Color.rgb(245, 248, 255);
-    private static final int MUTED = Color.rgb(147, 162, 183);
-    private static final int GREEN = Color.rgb(91, 225, 154);
-    private static final int RED = Color.rgb(255, 105, 128);
     private static final Handler MAIN = new Handler(Looper.getMainLooper());
 
     @Override public void onCreate() {
@@ -45,8 +36,8 @@ public final class AuroraGlassApplication extends Application {
             @Override public void onActivityResumed(Activity activity) {
                 if (activity.getClass().getName().equals("com.nexora.music.MainActivity")) {
                     MAIN.removeCallbacksAndMessages(activity);
-                    MAIN.postAtTime(() -> apply(activity), activity, System.currentTimeMillis() + 260);
-                    MAIN.postAtTime(() -> apply(activity), activity, System.currentTimeMillis() + 900);
+                    MAIN.postAtTime(() -> apply(activity), activity, System.currentTimeMillis() + 220);
+                    MAIN.postAtTime(() -> apply(activity), activity, System.currentTimeMillis() + 700);
                 }
             }
             @Override public void onActivityPaused(Activity activity) { }
@@ -63,21 +54,44 @@ public final class AuroraGlassApplication extends Application {
             ViewGroup root = activity.findViewById(android.R.id.content);
             if (root == null || root.getChildCount() == 0) return;
             View screen = root.getChildAt(0);
-            skinTree(activity, screen, 0);
-            styleActivityFields(activity);
-            styleSystemBars(activity);
+            NexoraTheme theme = resolveTheme(screen);
+            skinTree(activity, screen, 0, theme);
+            styleActivityFields(activity, theme);
+            styleSystemBars(activity, theme);
         } catch (Exception ignored) {
             // Visual styling must never break application functionality.
         }
     }
 
-    private void styleActivityFields(Activity activity) {
+    private NexoraTheme resolveTheme(View screen) {
+        String text = flattenText(screen).toLowerCase();
+        // Distinct screen identities keep the app visually varied while all themes
+        // remain inside the same Aurora Glass design language.
+        if (text.contains("музык") || text.contains("music") || text.contains("afterglow") || text.contains("плеер") || text.contains("playlist")) {
+            return NexoraTheme.of(NexoraTheme.Id.SUNSET);
+        }
+        if (text.contains("друз") || text.contains("friends") || text.contains("online") || text.contains("в сети")) {
+            return NexoraTheme.of(NexoraTheme.Id.EMERALD);
+        }
+        if (text.contains("профил") || text.contains("profile") || text.contains("username") || text.contains("bio")) {
+            return NexoraTheme.of(NexoraTheme.Id.VIOLET);
+        }
+        if (text.contains("настрой") || text.contains("settings") || text.contains("preferences")) {
+            return NexoraTheme.of(NexoraTheme.Id.MIDNIGHT);
+        }
+        if (text.contains("диалог") || text.contains("сообщен") || text.contains("chat") || text.contains("message")) {
+            return NexoraTheme.of(NexoraTheme.Id.VIOLET);
+        }
+        return NexoraTheme.of(NexoraTheme.Id.AURORA);
+    }
+
+    private void styleActivityFields(Activity activity, NexoraTheme theme) {
         try {
             Field contentField = activity.getClass().getDeclaredField("content");
             contentField.setAccessible(true);
-            Object contentValue = contentField.get(activity);
-            if (contentValue instanceof LinearLayout) {
-                LinearLayout content = (LinearLayout) contentValue;
+            Object value = contentField.get(activity);
+            if (value instanceof LinearLayout) {
+                LinearLayout content = (LinearLayout) value;
                 content.setBackgroundColor(Color.TRANSPARENT);
                 content.setPadding(dp(activity, 18), dp(activity, 8), dp(activity, 18), dp(activity, 22));
             }
@@ -86,30 +100,30 @@ public final class AuroraGlassApplication extends Application {
         try {
             Field navField = activity.getClass().getDeclaredField("nav");
             navField.setAccessible(true);
-            Object navValue = navField.get(activity);
-            if (navValue instanceof LinearLayout) styleNav(activity, (LinearLayout) navValue);
+            Object value = navField.get(activity);
+            if (value instanceof LinearLayout) styleNav(activity, (LinearLayout) value, theme);
         } catch (Exception ignored) { }
 
         try {
             Field miniField = activity.getClass().getDeclaredField("miniPlayer");
             miniField.setAccessible(true);
-            Object miniValue = miniField.get(activity);
-            if (miniValue instanceof View) {
-                View mini = (View) miniValue;
-                mini.setBackground(glass(SURFACE_2, 18, 90));
+            Object value = miniField.get(activity);
+            if (value instanceof View) {
+                View mini = (View) value;
+                mini.setBackground(glass(theme.elevated, 18));
                 mini.setElevation(dp(activity, 3));
             }
         } catch (Exception ignored) { }
     }
 
-    private void styleSystemBars(Activity activity) {
-        activity.getWindow().setStatusBarColor(BG);
-        activity.getWindow().setNavigationBarColor(BG);
+    private void styleSystemBars(Activity activity, NexoraTheme theme) {
+        activity.getWindow().setStatusBarColor(theme.background);
+        activity.getWindow().setNavigationBarColor(theme.background);
         if (android.os.Build.VERSION.SDK_INT >= 23) activity.getWindow().getDecorView().setSystemUiVisibility(0);
     }
 
-    private void styleNav(Activity a, LinearLayout nav) {
-        nav.setBackground(glass(SURFACE, 22, 100));
+    private void styleNav(Activity a, LinearLayout nav, NexoraTheme theme) {
+        nav.setBackground(glass(theme.surface, 22));
         nav.setPadding(dp(a, 8), dp(a, 6), dp(a, 8), dp(a, 6));
         nav.setElevation(dp(a, 8));
         for (int i = 0; i < nav.getChildCount(); i++) {
@@ -117,40 +131,40 @@ public final class AuroraGlassApplication extends Application {
             if (!(item instanceof ViewGroup)) continue;
             ViewGroup group = (ViewGroup) item;
             boolean selected = hasAccentBackground(group);
-            group.setBackground(selected ? glass(Color.argb(28, 107, 231, 255), 16, 100) : null);
+            group.setBackground(selected ? glass(theme.accentSoft, 16) : null);
             for (int j = 0; j < group.getChildCount(); j++) {
                 View child = group.getChildAt(j);
                 if (child instanceof TextView) {
-                    ((TextView) child).setTextColor(selected ? TEXT : MUTED);
+                    ((TextView) child).setTextColor(selected ? theme.text : theme.muted);
                     ((TextView) child).setTextSize(9);
                 } else if (child instanceof ImageView) {
-                    ((ImageView) child).setColorFilter(selected ? ACCENT : MUTED);
+                    ((ImageView) child).setColorFilter(selected ? theme.accent : theme.muted);
                 }
             }
         }
     }
 
-    private void skinTree(Activity a, View view, int depth) {
+    private void skinTree(Activity a, View view, int depth, NexoraTheme theme) {
         if (view == null) return;
 
         if (view instanceof ScrollView) {
             view.setBackgroundColor(Color.TRANSPARENT);
-            if (view instanceof ViewGroup) ((ViewGroup) view).setClipToPadding(false);
+            ((ScrollView) view).setClipToPadding(false);
         }
 
-        if (view instanceof EditText) styleEditText(a, (EditText) view);
-        else if (view instanceof Button) styleButton(a, (Button) view);
-        else if (view instanceof TextView) styleText(a, (TextView) view);
+        if (view instanceof EditText) styleEditText(a, (EditText) view, theme);
+        else if (view instanceof Button) styleButton(a, (Button) view, theme);
+        else if (view instanceof TextView) styleText(a, (TextView) view, theme);
 
         if (view instanceof ViewGroup) {
             ViewGroup group = (ViewGroup) view;
             boolean rootLike = depth <= 1;
             boolean cardLike = isCardLike(group);
             if (!rootLike && cardLike) {
-                group.setBackground(glass(chooseSurface(group), 18, 100));
+                group.setBackground(glass(chooseSurface(group, theme), 18));
                 group.setElevation(dp(a, 1));
             }
-            for (int i = 0; i < group.getChildCount(); i++) skinTree(a, group.getChildAt(i), depth + 1);
+            for (int i = 0; i < group.getChildCount(); i++) skinTree(a, group.getChildAt(i), depth + 1, theme);
             if (cardLike) addGlassSpacing(a, group);
         }
     }
@@ -168,26 +182,26 @@ public final class AuroraGlassApplication extends Application {
         return textCount > 0 || imageCount > 0;
     }
 
-    private int chooseSurface(ViewGroup group) {
+    private int chooseSurface(ViewGroup group, NexoraTheme theme) {
         String text = flattenText(group).toLowerCase();
-        if (text.contains("now playing") || text.contains("afterglow") || text.contains("плеер") || text.contains("музык")) return SURFACE_2;
-        if (text.contains("ошиб") || text.contains("не удалось")) return Color.rgb(39, 25, 38);
-        return SURFACE;
+        if (text.contains("now playing") || text.contains("afterglow") || text.contains("плеер") || text.contains("музык")) return theme.elevated;
+        if (text.contains("ошиб") || text.contains("не удалось")) return Color.rgb(48, 25, 38);
+        return theme.surface;
     }
 
-    private void styleText(Activity a, TextView text) {
+    private void styleText(Activity a, TextView text, NexoraTheme theme) {
         text.setIncludeFontPadding(false);
         String value = text.getText() == null ? "" : text.getText().toString().trim();
         if (value.isEmpty()) return;
         float size = text.getTextSize() / a.getResources().getDisplayMetrics().scaledDensity;
         boolean heading = size >= 18 || value.equalsIgnoreCase("NEXORA") || isHeading(value);
-        boolean accent = value.equalsIgnoreCase("See all") || value.equalsIgnoreCase("В сети") || value.equalsIgnoreCase("● в сети") || value.contains("online");
+        boolean accent = value.equalsIgnoreCase("See all") || value.equalsIgnoreCase("В сети") || value.equalsIgnoreCase("● в сети") || value.toLowerCase().contains("online");
         boolean negative = value.toLowerCase().contains("ошиб") || value.toLowerCase().contains("удалить");
-        if (accent) text.setTextColor(ACCENT);
-        else if (negative) text.setTextColor(RED);
-        else if (heading) text.setTextColor(TEXT);
-        else if (value.startsWith("●")) text.setTextColor(GREEN);
-        else text.setTextColor(MUTED);
+        if (accent) text.setTextColor(theme.accent);
+        else if (negative) text.setTextColor(theme.danger);
+        else if (heading) text.setTextColor(theme.text);
+        else if (value.startsWith("●")) text.setTextColor(theme.success);
+        else text.setTextColor(theme.muted);
         if (heading) text.setTypeface(Typeface.create("sans-serif", Typeface.BOLD));
     }
 
@@ -197,23 +211,28 @@ public final class AuroraGlassApplication extends Application {
                 || value.equals("Личные заметки") || value.equals("Твои друзья") || value.equals("Nexora");
     }
 
-    private void styleEditText(Activity a, EditText edit) {
-        edit.setTextColor(TEXT);
-        edit.setHintTextColor(MUTED);
+    private void styleEditText(Activity a, EditText edit, NexoraTheme theme) {
+        edit.setTextColor(theme.text);
+        edit.setHintTextColor(theme.muted);
         edit.setPadding(dp(a, 16), dp(a, 11), dp(a, 16), dp(a, 11));
-        edit.setBackground(glass(SURFACE_2, 15, 100));
+        edit.setSingleLine(edit.getInputType() != 131073); // keep multiline fields intact
+        edit.setBackground(glass(theme.elevated, 15));
     }
 
-    private void styleButton(Activity a, Button button) {
-        String label = button.getText() == null ? "" : button.getText().toString().toLowerCase();
+    private void styleButton(Activity a, Button button, NexoraTheme theme) {
+        String label = button.getText() == null ? "" : button.getText().toString().trim().toLowerCase();
         boolean primary = label.contains("войти") || label.contains("регистра") || label.contains("созда")
                 || label.contains("сохран") || label.contains("отправ") || label.contains("добав")
-                || label.contains("продолж") || label.contains("поиск") || label.contains("upload");
+                || label.contains("продолж") || label.contains("поиск") || label.contains("upload")
+                || label.contains("подтверд") || label.contains("готово") || label.contains("начать");
+        boolean destructive = label.contains("удалить") || label.contains("выйти") || label.contains("отмена");
         button.setAllCaps(false);
         button.setTextSize(14);
+        button.setMinHeight(dp(a, 44));
+        button.setMinimumHeight(dp(a, 44));
         button.setTypeface(Typeface.create("sans-serif", Typeface.BOLD));
-        button.setTextColor(primary ? BG : TEXT);
-        button.setBackground(primary ? glass(ACCENT, 15, 100) : glass(SURFACE_2, 15, 100));
+        button.setTextColor(primary ? theme.background : destructive ? theme.danger : theme.text);
+        button.setBackground(primary ? glass(theme.accent, 15) : destructive ? glass(Color.argb(30, Color.red(theme.danger), Color.green(theme.danger), Color.blue(theme.danger)), 15) : glass(theme.elevated, 15));
         button.setPadding(dp(a, 16), dp(a, 10), dp(a, 16), dp(a, 10));
         button.setElevation(dp(a, 1));
     }
@@ -235,17 +254,20 @@ public final class AuroraGlassApplication extends Application {
             String s = t.getText().toString();
             if (s.equals("Чаты") || s.equals("Друзья") || s.equals("Профиль") || s.equals("Настройки") || s.equals("Поиск")) {
                 int color = t.getCurrentTextColor();
-                return color == ACCENT || color == Color.rgb(51, 210, 238);
+                return color == Color.rgb(107, 231, 255) || color == Color.rgb(174, 139, 255) || color == Color.rgb(102, 242, 194)
+                        || color == Color.rgb(158, 183, 204) || color == Color.rgb(255, 137, 185);
             }
         }
         return false;
     }
 
-    private String flattenText(ViewGroup group) {
+    private String flattenText(View view) {
         StringBuilder b = new StringBuilder();
-        List<TextView> texts = new ArrayList<>();
-        collectTexts(group, texts);
-        for (TextView t : texts) if (t.getText() != null) b.append(t.getText()).append(' ');
+        if (view instanceof TextView && ((TextView) view).getText() != null) b.append(((TextView) view).getText()).append(' ');
+        if (view instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) view;
+            for (int i = 0; i < group.getChildCount(); i++) b.append(flattenText(group.getChildAt(i)));
+        }
         return b.toString();
     }
 
@@ -257,12 +279,11 @@ public final class AuroraGlassApplication extends Application {
         }
     }
 
-    private static GradientDrawable glass(int color, int radius, int alpha) {
+    private static GradientDrawable glass(int color, int radius) {
         GradientDrawable d = new GradientDrawable();
-        if (Color.alpha(color) == 255 && alpha < 100) d.setColor(Color.argb(Math.round(255f * alpha / 100f), Color.red(color), Color.green(color), Color.blue(color)));
-        else d.setColor(color);
+        d.setColor(color);
         d.setCornerRadius(radius);
-        d.setStroke(1, Color.argb(38, 255, 255, 255));
+        d.setStroke(1, Color.argb(42, 255, 255, 255));
         return d;
     }
 
