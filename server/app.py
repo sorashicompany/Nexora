@@ -1,15 +1,20 @@
 import os
 from datetime import timedelta
-from functools import wraps
 
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify
-from flask_socketio import SocketIO, emit, join_room
-from flask_session import Session
-from werkzeug.middleware.proxy_fix import ProxyFix
-from werkzeug.security import check_password_hash, generate_password_hash
 from dotenv import load_dotenv
+from flask import Flask, jsonify, redirect, render_template, request, session, url_for
+from flask_session import Session
+from flask_socketio import SocketIO, emit, join_room
+from werkzeug.middleware.proxy_fix import ProxyFix
 
-from database import check_login, save_msg, public_history, private_history, get_profile, update_profile
+from database import (
+    check_login,
+    get_profile,
+    private_history,
+    public_history,
+    save_msg,
+    update_profile,
+)
 
 load_dotenv()
 
@@ -26,7 +31,7 @@ try:
     import redis
     redis_client = redis.from_url(REDIS_URL, decode_responses=True)
     redis_client.ping()
-except Exception:
+except Exception:  # noqa: BLE001
     redis_client = None
 
 if redis_client:
@@ -53,10 +58,10 @@ app.config.update(
 os.makedirs(app.instance_path, exist_ok=True)
 Session(app)
 
-socketio_kwargs = dict(
-    cors_allowed_origins=os.getenv("CORS_ORIGINS", "*"),
-    async_mode="threading",
-)
+socketio_kwargs = {
+    "cors_allowed_origins": os.getenv("CORS_ORIGINS", "*"),
+    "async_mode": "threading",
+}
 if redis_client:
     socketio_kwargs["message_queue"] = REDIS_URL
 socketio = SocketIO(app, **socketio_kwargs)
@@ -166,6 +171,7 @@ def on_connect():
         return False
     add_online(request.sid, nick)
     join_room("public")
+    join_room(f"user:{nick}")
 
     # История загружается отдельным событием после первого paint.
     # Это позволяет мгновенно показать интерфейс и не нагружать первое подключение.
@@ -193,16 +199,19 @@ def on_history_public():
 
 @socketio.on("typing")
 def on_typing(data):
+    if not isinstance(data, dict):
+        return
     nick = session.get("nick")
     to = (data.get("to") or "").strip()
     active = bool(data.get("active"))
     if not nick or not to or to == "public":
         return
-    for sid in online_sids_for(to):
-        emit("typing", {"user": nick, "active": active}, to=sid)
+    emit("typing", {"user": nick, "active": active}, room=f"user:{to}")
 
 @socketio.on("public")
 def on_public(data):
+    if not isinstance(data, dict):
+        return
     nick = session.get("nick")
     text = (data.get("text") or "").strip()[:4000]
     if not (nick and text):
@@ -212,6 +221,8 @@ def on_public(data):
 
 @socketio.on("private")
 def on_private(data):
+    if not isinstance(data, dict):
+        return
     nick = session.get("nick")
     text = (data.get("text") or "").strip()[:4000]
     to = (data.get("to") or "").strip()
@@ -223,12 +234,14 @@ def on_private(data):
         "user": nick, "text": text, "to": to,
         "color": color(nick), "private": True
     }
-    emit("private", payload)
-    for sid in online_sids_for(to):
-        emit("private", payload, to=sid)
+    emit("private", payload, room=f"user:{nick}")
+    if to != nick:
+        emit("private", payload, room=f"user:{to}")
 
 @socketio.on("history_private")
 def on_history(data):
+    if not isinstance(data, dict):
+        return
     nick = session.get("nick")
     other = (data.get("user") or "").strip()
     if not (nick and other):
@@ -237,11 +250,11 @@ def on_history(data):
         emit("private", {
             "user": m["sender"], "text": m["text"],
             "to": other if m["sender"] == nick else nick,
-            "time": (m["created_at"] or "")[11:16],
+            "time": str(m["created_at"] or "")[11:16],
             "color": color(m["sender"]), "private": True, "hist": True
         })
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 5000))
+    port = int(os.getenv("PORT", "5000"))
     print(f"→ http://0.0.0.0:{port}")
     socketio.run(app, host="0.0.0.0", port=port, allow_unsafe_werkzeug=True)

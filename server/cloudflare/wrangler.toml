@@ -1,4 +1,4 @@
-name = "nexora-api"
+name = "nexora"
 main = "worker-entry.js"
 compatibility_date = "2026-08-15"
 

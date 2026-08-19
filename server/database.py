@@ -122,13 +122,12 @@ def get_profile(nick):
         return dict(row) if row else None
 
 def update_profile(nick, data):
-    allowed = ["profile_type", "bio", "avatar_url", "spotify_url", "apple_music_url", "youtube_url", "tiktok_url", "soundcloud_url", "beatchain_url"]
-    clean = {k: str(data.get(k, "")).strip()[:1000] for k in allowed if k in data}
-    if clean.get("profile_type") not in (None, "artist", "beatmaker"):
+    if not isinstance(data, dict):
         return False
-    if "profile_type" in clean and clean["profile_type"] == "artist":
-        # Keep the URL if supplied, but don't force a BeatChain profile for artists.
-        pass
+    allowed = ["profile_type", "bio", "avatar_url", "spotify_url", "apple_music_url", "youtube_url", "tiktok_url", "soundcloud_url", "beatchain_url"]
+    clean = {k: str(data[k]).strip()[:1000] for k in allowed if k in data and data[k] is not None}
+    if "profile_type" in clean and clean["profile_type"] not in ("artist", "beatmaker"):
+        return False
     if not clean:
         return True
     sets = ", ".join(f"{k}=?" for k in clean)

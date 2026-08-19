@@ -29,7 +29,7 @@ jobs:
         run: |
           test -f worker.js
           test -f wrangler.toml
-          grep -q '^name = "nexora-api"' wrangler.toml
+          grep -q '^name = "nexora"' wrangler.toml
 
       - name: Deploy to Cloudflare
         uses: cloudflare/wrangler-action@v3
