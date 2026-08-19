@@ -39,6 +39,7 @@ jobs:
         run: |
           python3 scripts/patch_android_ui.py
           python3 scripts/ensure_settings.py
+          python3 scripts/ensure_settings_state.py
 
       - name: Build Nexora 1.9.1
         run: ./gradlew --no-daemon assembleDebug
