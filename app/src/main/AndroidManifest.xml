@@ -9,7 +9,7 @@
         android:icon="@drawable/nexora_mark"
         android:label="@string/app_name"
         android:theme="@style/AppTheme"
-        android:usesCleartextTraffic="true">
+        android:usesCleartextTraffic="false">
         <provider
             android:name=".AuroraBackgroundProvider"
             android:authorities="com.nexora.music.aurora-backgrounds"
