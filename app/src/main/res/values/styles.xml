@@ -1,12 +1,13 @@
 <resources>
     <style name="AppTheme" parent="android:style/Theme.Material.NoActionBar">
         <item name="android:fontFamily">sans</item>
-        <item name="android:statusBarColor">?android:attr/colorBackground</item>
-        <item name="android:navigationBarColor">?android:attr/colorBackground</item>
+        <item name="android:windowBackground">@color/nexora_bg</item>
+        <item name="android:statusBarColor">@color/nexora_bg</item>
+        <item name="android:navigationBarColor">@color/nexora_bg</item>
         <item name="android:colorAccent">@color/nexora_accent</item>
         <item name="android:windowActionModeOverlay">true</item>
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowDisablePreview">true</item>
-        <item name="android:forceDarkAllowed">true</item>
+        <item name="android:forceDarkAllowed">false</item>
     </style>
 </resources>
