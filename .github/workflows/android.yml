@@ -45,6 +45,7 @@ jobs:
         run: ./gradlew --no-daemon assembleDebug
 
       - name: Persist generated Android source
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           if git diff --quiet -- app/src/main/java/com/nexora/music/MainActivity.java; then
             echo "No generated source changes to persist"
