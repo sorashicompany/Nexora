@@ -15,19 +15,25 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.widget.TextView;
 
+import java.util.Collections;
 import java.util.Locale;
+import java.util.Map;
+import java.util.WeakHashMap;
 
 /**
  * Installs lightweight, generated Aurora Glass backgrounds without touching
  * MainActivity business logic. Each screen gets a distinct atmospheric palette.
  */
 public final class AuroraBackgroundProvider extends ContentProvider {
+    private final Map<View, Boolean> watchedRoots = Collections.synchronizedMap(new WeakHashMap<>());
+
     @Override public boolean onCreate() {
         Application app = (Application) getContext().getApplicationContext();
         app.registerActivityLifecycleCallbacks(new Application.ActivityLifecycleCallbacks() {
-            @Override public void onActivityResumed(Activity activity) { apply(activity); }
+            @Override public void onActivityResumed(Activity activity) { installWatcher(activity); apply(activity); }
             @Override public void onActivityCreated(Activity activity, Bundle state) { }
             @Override public void onActivityStarted(Activity activity) { }
             @Override public void onActivityPaused(Activity activity) { }
@@ -38,14 +44,19 @@ public final class AuroraBackgroundProvider extends ContentProvider {
         return true;
     }
 
+    private void installWatcher(Activity activity) {
+        final View root = activity.findViewById(android.R.id.content);
+        if (root == null || watchedRoots.containsKey(root)) return;
+        watchedRoots.put(root, Boolean.TRUE);
+        root.getViewTreeObserver().addOnGlobalLayoutListener(() -> apply(activity));
+    }
+
     private void apply(Activity activity) {
         View root = activity.findViewById(android.R.id.content);
         if (root == null) return;
         ScreenTheme theme = themeFor(root);
-        Object old = root.getTag();
-        String key = theme.key;
-        if (key.equals(old)) return;
-        root.setTag(key);
+        if (theme.key.equals(root.getTag())) return;
+        root.setTag(theme.key);
         root.setBackground(new AuroraDrawable(theme));
         root.setClipToPadding(false);
     }
@@ -68,10 +79,10 @@ public final class AuroraBackgroundProvider extends ContentProvider {
             return new ScreenTheme("profile", "#0B0815", "#25163A", "#C18BFF", "#6BE7FF");
         if (contains(text, "войти через telegram", "регистрация", "музыка • люди • творчество"))
             return new ScreenTheme("auth", "#07111E", "#102D43", "#6BE7FF", "#4B7DFF");
-        if (contains(text, "сообщения", "диалоги", "чаты"))
-            return new ScreenTheme("chats", "#060A12", "#11223A", "#6BE7FF", "#4B8CFF");
         if (contains(text, "отправить", "написать", "сообщение", "онлайн", "оффлайн"))
             return new ScreenTheme("conversation", "#070A13", "#1B1634", "#A98BFF", "#6BE7FF");
+        if (contains(text, "сообщения", "диалоги", "чаты"))
+            return new ScreenTheme("chats", "#060A12", "#11223A", "#6BE7FF", "#4B8CFF");
         return new ScreenTheme("default", "#060A12", "#101827", "#6BE7FF", "#4B7DFF");
     }
 
@@ -115,21 +126,16 @@ public final class AuroraBackgroundProvider extends ContentProvider {
         private final ScreenTheme theme;
         AuroraDrawable(ScreenTheme theme) { this.theme = theme; }
 
-        @Override protected void onBoundsChange(android.graphics.Rect bounds) { }
-
         @Override public void draw(Canvas canvas) {
             float w = getBounds().width(), h = getBounds().height();
             if (w <= 0 || h <= 0) return;
-
             paint.setShader(new LinearGradient(0, 0, w, h,
                     Color.parseColor(theme.top), Color.parseColor(theme.bottom), Shader.TileMode.CLAMP));
             canvas.drawRect(0, 0, w, h, paint);
-
             drawGlow(canvas, w * .05f, h * .08f, w * .72f, theme.glow1, .20f);
             drawGlow(canvas, w * .88f, h * .24f, w * .54f, theme.glow2, .13f);
             drawGlow(canvas, w * .84f, h * .88f, w * .62f, theme.glow1, .10f);
             drawGlow(canvas, w * .04f, h * .78f, w * .58f, theme.glow2, .06f);
-
             paint.setShader(null);
             paint.setColor(Color.argb(7, 255, 255, 255));
             paint.setStrokeWidth(1f);
