@@ -20,13 +20,7 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Nexora Aurora Glass design system.
- *
- * The existing MainActivity/business logic stays intact. This layer provides
- * adaptive themes and consistently styles auth, chats, friends, profiles,
- * search, settings, music/player and secondary flows.
- */
+/** Central Aurora Glass styling layer for the existing Nexora UI. */
 public final class AuroraGlassApplication extends Application {
     private static final Handler MAIN = new Handler(Looper.getMainLooper());
 
@@ -58,30 +52,24 @@ public final class AuroraGlassApplication extends Application {
             skinTree(activity, screen, 0, theme);
             styleActivityFields(activity, theme);
             styleSystemBars(activity, theme);
-        } catch (Exception ignored) {
-            // Visual styling must never break application functionality.
-        }
+        } catch (Exception ignored) { }
     }
 
     private NexoraTheme resolveTheme(View screen) {
         String text = flattenText(screen).toLowerCase();
-        // Distinct screen identities keep the app visually varied while all themes
-        // remain inside the same Aurora Glass design language.
-        if (text.contains("музык") || text.contains("music") || text.contains("afterglow") || text.contains("плеер") || text.contains("playlist")) {
+        // Order matters because the bottom navigation contains every section label.
+        if (text.contains("музык") || text.contains("music") || text.contains("afterglow") || text.contains("плеер") || text.contains("playlist"))
             return NexoraTheme.of(NexoraTheme.Id.SUNSET);
-        }
-        if (text.contains("друз") || text.contains("friends") || text.contains("online") || text.contains("в сети")) {
-            return NexoraTheme.of(NexoraTheme.Id.EMERALD);
-        }
-        if (text.contains("профил") || text.contains("profile") || text.contains("username") || text.contains("bio")) {
+        if (text.contains("профил") || text.contains("profile") || text.contains("username") || text.contains("bio"))
             return NexoraTheme.of(NexoraTheme.Id.VIOLET);
-        }
-        if (text.contains("настрой") || text.contains("settings") || text.contains("preferences")) {
+        if (text.contains("настрой") || text.contains("settings") || text.contains("preferences"))
             return NexoraTheme.of(NexoraTheme.Id.MIDNIGHT);
-        }
-        if (text.contains("диалог") || text.contains("сообщен") || text.contains("chat") || text.contains("message")) {
+        if (text.contains("диалог") || text.contains("сообщен") || text.contains("chat") || text.contains("message"))
             return NexoraTheme.of(NexoraTheme.Id.VIOLET);
-        }
+        if (text.contains("друз") || text.contains("friends") || text.contains("online") || text.contains("в сети"))
+            return NexoraTheme.of(NexoraTheme.Id.EMERALD);
+        if (text.contains("поиск") || text.contains("search"))
+            return NexoraTheme.of(NexoraTheme.Id.AURORA);
         return NexoraTheme.of(NexoraTheme.Id.AURORA);
     }
 
@@ -96,14 +84,12 @@ public final class AuroraGlassApplication extends Application {
                 content.setPadding(dp(activity, 18), dp(activity, 8), dp(activity, 18), dp(activity, 22));
             }
         } catch (Exception ignored) { }
-
         try {
             Field navField = activity.getClass().getDeclaredField("nav");
             navField.setAccessible(true);
             Object value = navField.get(activity);
             if (value instanceof LinearLayout) styleNav(activity, (LinearLayout) value, theme);
         } catch (Exception ignored) { }
-
         try {
             Field miniField = activity.getClass().getDeclaredField("miniPlayer");
             miniField.setAccessible(true);
@@ -146,12 +132,10 @@ public final class AuroraGlassApplication extends Application {
 
     private void skinTree(Activity a, View view, int depth, NexoraTheme theme) {
         if (view == null) return;
-
         if (view instanceof ScrollView) {
             view.setBackgroundColor(Color.TRANSPARENT);
             ((ScrollView) view).setClipToPadding(false);
         }
-
         if (view instanceof EditText) styleEditText(a, (EditText) view, theme);
         else if (view instanceof Button) styleButton(a, (Button) view, theme);
         else if (view instanceof TextView) styleText(a, (TextView) view, theme);
@@ -172,8 +156,7 @@ public final class AuroraGlassApplication extends Application {
     private boolean isCardLike(ViewGroup group) {
         if (group.getChildCount() == 0 || group instanceof ScrollView) return false;
         if (group.getParent() instanceof ScrollView && group.getChildCount() > 8) return false;
-        int textCount = 0;
-        int imageCount = 0;
+        int textCount = 0, imageCount = 0;
         for (int i = 0; i < group.getChildCount(); i++) {
             View child = group.getChildAt(i);
             if (child instanceof TextView) textCount++;
@@ -215,7 +198,6 @@ public final class AuroraGlassApplication extends Application {
         edit.setTextColor(theme.text);
         edit.setHintTextColor(theme.muted);
         edit.setPadding(dp(a, 16), dp(a, 11), dp(a, 16), dp(a, 11));
-        edit.setSingleLine(edit.getInputType() != 131073); // keep multiline fields intact
         edit.setBackground(glass(theme.elevated, 15));
     }
 
