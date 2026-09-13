@@ -1,52 +1,62 @@
 #!/usr/bin/env node
 /**
- * Stage the static shell produced by TanStack Start SPA mode for Capacitor.
- * The previous implementation guessed a JS entry file, which could produce
- * a valid-looking HTML document with no mounted React application (black screen).
+ * Stage the client-side TanStack Start SPA for Capacitor.
+ * Capacitor needs a concrete dist/index.html; it cannot run the Nitro SSR server.
  */
 
-import { cpSync, existsSync, mkdirSync, rmSync, renameSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const ROOT = process.cwd();
-const STATIC_SRC = join(ROOT, ".vercel", "output", "static");
 const DIST = join(ROOT, "dist");
-const SHELL = join(STATIC_SRC, "_shell.html");
-const INDEX = join(STATIC_SRC, "index.html");
+const CANDIDATES = [
+  join(ROOT, ".vercel", "output", "static"),
+  join(ROOT, "dist", "client"),
+  join(ROOT, "dist"),
+];
 
 function fail(msg) {
   console.error(`[stage-capacitor] ${msg}`);
   process.exit(1);
 }
 
-if (!existsSync(STATIC_SRC)) {
-  fail(`Static output not found at ${STATIC_SRC}.`);
-}
-
-if (!existsSync(SHELL) && !existsSync(INDEX)) {
-  fail(
-    `TanStack Start SPA shell was not generated. Expected ${SHELL} or ${INDEX}. ` +
-      "Make sure NEXORA_CAPACITOR=1 is set for the build.",
-  );
-}
+const source = CANDIDATES.find((dir) => existsSync(dir));
+if (!source) fail("No static client output found after the Capacitor build.");
 
 if (existsSync(DIST)) rmSync(DIST, { recursive: true, force: true });
 mkdirSync(DIST, { recursive: true });
-cpSync(STATIC_SRC, DIST, { recursive: true });
+cpSync(source, DIST, { recursive: true });
 
-const stagedShell = join(DIST, "_shell.html");
-const stagedIndex = join(DIST, "index.html");
+const indexPath = join(DIST, "index.html");
+const shellPath = join(DIST, "_shell.html");
 
-// Capacitor loads webDir/index.html. TanStack Start SPA mode deliberately emits
-// the shell as _shell.html, so use the exact generated shell rather than inventing
-// a script tag and risking a blank WebView.
-if (!existsSync(stagedIndex) && existsSync(stagedShell)) {
-  cpSync(stagedShell, stagedIndex);
+if (!existsSync(indexPath) && existsSync(shellPath)) {
+  cpSync(shellPath, indexPath);
 }
 
-if (!existsSync(stagedIndex)) {
-  fail("No index.html available after staging.");
+// With prerender disabled there is intentionally no _shell.html. In that case
+// use the real generated client entry, never an arbitrary/largest JS file.
+if (!existsSync(indexPath)) {
+  const assetsDir = join(DIST, "assets");
+  if (!existsSync(assetsDir)) fail("No assets directory found for the Capacitor SPA.");
+
+  const files = readdirSync(assetsDir);
+  const entry = files.find((name) => /^index-[^/]+\.js$/.test(name));
+  if (!entry) fail("Could not find the generated TanStack client entry (assets/index-*.js).");
+
+  const css = files
+    .filter((name) => name.endsWith(".css"))
+    .map((name) => `    <link rel="stylesheet" href="assets/${name}">`)
+    .join("\n");
+
+  writeFileSync(
+    indexPath,
+    `<!doctype html>\n<html lang="ru">\n<head>\n  <meta charset="utf-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n  <meta name="theme-color" content="#06081a">\n  <title>Nexora</title>\n${css}\n</head>\n<body class="bg-bg font-sans text-fg">\n  <div id="root"></div>\n  <script type="module" src="assets/${entry}"></script>\n</body>\n</html>\n`,
+    "utf8",
+  );
 }
 
-console.log(`[stage-capacitor] Staged TanStack Start SPA shell → ${stagedIndex}`);
-console.log("[stage-capacitor] Ready for Capacitor sync.");
+if (!existsSync(indexPath)) fail("No index.html available after staging.");
+
+console.log(`[stage-capacitor] Client source: ${source}`);
+console.log(`[stage-capacitor] Capacitor entry: ${indexPath}`);
