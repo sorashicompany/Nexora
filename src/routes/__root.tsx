@@ -5,6 +5,9 @@ import { PreviewHostBridge } from "@/components/preview-host-bridge";
 import appCss from "../styles.css?url";
 
 const APP_NAME = "Nexora";
+const isCapacitorBuild =
+  (globalThis as typeof globalThis & { process?: { env?: Record<string, string | undefined> } }).process?.env
+    ?.NEXORA_CAPACITOR === "1";
 
 const fetchSessionUser = createServerFn({ method: "GET" }).handler(async () => {
   const { getSessionUser } = await import("@/lib/auth/verify.server");
@@ -13,7 +16,11 @@ const fetchSessionUser = createServerFn({ method: "GET" }).handler(async () => {
 });
 
 export const Route = createRootRoute({
-  beforeLoad: async () => ({ sessionUser: await fetchSessionUser() }),
+  beforeLoad: async () => ({
+    // Capacitor ships the client as a static SPA and has no Nitro server locally.
+    // Do not execute the server-side session lookup while generating the mobile shell.
+    sessionUser: isCapacitorBuild ? null : await fetchSessionUser(),
+  }),
   head: () => ({
     meta: [
       { charSet: "utf-8" },
