@@ -19,7 +19,7 @@ export const Route = createRootRoute({
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: APP_NAME },
-      { name: "theme-color", content: "#0a0a0b" },
+      { name: "theme-color", content: "#06081a" },
       {
         name: "description",
         content: "Музыкальная сеть для исполнителей и битмейкеров. Демки, биты, коллабы, лицензии.",
