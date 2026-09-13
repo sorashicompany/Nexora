@@ -3,3 +3,13 @@ node_modules/
 .github_repo
 .env
 .env.*
+
+# Capacitor / Android
+android/
+dist/
+.capacitor/
+*.apk
+*.aab
+
+# Build outputs
+.vercel/output/
