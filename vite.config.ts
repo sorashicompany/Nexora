@@ -115,7 +115,7 @@ export default defineConfig(({ command, isPreview }) => ({
     tailwindcss(),
     tanstackStart({
       ...(isCapacitorBuild
-        ? { spa: { enabled: true, prerender: { enabled: false } } }
+        ? { spa: { enabled: true } }
         : {}),
     }),
     ...(command === "build" || isPreview
