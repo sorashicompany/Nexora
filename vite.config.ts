@@ -105,6 +105,9 @@ export default defineConfig(({ command, isPreview }) => ({
   server: { host: "0.0.0.0", port: 8080, strictPort: true },
   preview: { host: "127.0.0.1", port: 8081, strictPort: true },
   resolve: { tsconfigPaths: true },
+  define: {
+    "import.meta.env.VITE_NEXORA_CAPACITOR": JSON.stringify(isCapacitorBuild ? "1" : "0"),
+  },
   plugins: [
     pgliteBootstrapPlugin(),
     authPopupPlugin(),
