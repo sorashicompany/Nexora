@@ -1,34 +1,31 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 /**
- * Nexora is an SSR app (TanStack Start). A pure offline WebView cannot run
- * server functions / auth / DB — that is the root cause of the black screen.
- *
- * Production APK MUST load the deployed site via CAPACITOR_SERVER_URL
- * (e.g. https://your-app.vercel.app). Local `webDir` is only a fallback shell.
+ * Nexora is SSR — APK loads the live site in WebView (full auth/DB/API).
+ * Override with CAPACITOR_SERVER_URL / VITE_APP_URL if needed.
  */
+const DEFAULT_LIVE_URL = 'https://nexora-sepia-alpha.vercel.app';
+
 const serverUrl =
   process.env.CAPACITOR_SERVER_URL?.trim() ||
   process.env.VITE_APP_URL?.trim() ||
-  '';
+  DEFAULT_LIVE_URL;
 
 const config: CapacitorConfig = {
   appId: 'com.nexora.app',
   appName: 'Nexora',
   webDir: 'dist',
   bundledWebRuntime: false,
-  server: serverUrl
-    ? {
-        url: serverUrl.replace(/\/$/, ''),
-        cleartext: serverUrl.startsWith('http://'),
-        allowNavigation: [
-          serverUrl.replace(/\/$/, ''),
-          'https://*.vercel.app',
-          'https://*.supabase.co',
-          'https://*.workers.dev',
-        ],
-      }
-    : undefined,
+  server: {
+    url: serverUrl.replace(/\/$/, ''),
+    cleartext: serverUrl.startsWith('http://'),
+    allowNavigation: [
+      serverUrl.replace(/\/$/, ''),
+      'https://*.vercel.app',
+      'https://*.supabase.co',
+      'https://*.workers.dev',
+    ],
+  },
   android: {
     allowMixedContent: true,
     backgroundColor: '#06081a',
