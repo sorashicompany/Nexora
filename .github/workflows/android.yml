@@ -8,6 +8,9 @@ on:
 permissions:
   contents: read
 
+env:
+  NEXORA_CAPACITOR: "1"
+
 jobs:
   build-apk:
     runs-on: ubuntu-latest
