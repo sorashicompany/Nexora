@@ -29,10 +29,10 @@ jobs:
           java-version: '21'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install --no-audit --no-fund
 
       - name: Install Capacitor
-        run: npm install --no-save @capacitor/core @capacitor/cli @capacitor/android
+        run: npm install --no-save @capacitor/core @capacitor/cli @capacitor/android --no-audit --no-fund
 
       - name: Build web app
         run: npm run build:dev
