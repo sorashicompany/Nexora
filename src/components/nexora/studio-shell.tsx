@@ -9,6 +9,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { Logo } from "./logo";
 import { Onboarding } from "./onboarding";
 import { PlayerBar } from "./player-bar";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -81,11 +82,9 @@ export function StudioShell() {
       ) : null}
       <div className="flex min-h-0 flex-1">
         <aside className="hidden w-56 shrink-0 flex-col border-r border-border bg-surface md:flex">
-          <div className="px-5 pt-6 pb-4">
-            <Link to="/" className="font-display text-2xl tracking-tight">
-              Nexora
-            </Link>
-            <p className="mt-1 text-xs text-subtle">Студия коллабораций</p>
+          <div className="px-4 pt-5 pb-4">
+            <Logo size="sm" />
+            <p className="mt-1.5 pl-0.5 text-xs text-subtle">Студия коллабораций</p>
           </div>
           <nav className="flex flex-1 flex-col gap-1 px-3">
             {NAV.map((item) => {
@@ -100,10 +99,12 @@ export function StudioShell() {
                   to={item.to}
                   className={cn(
                     "flex h-11 items-center gap-3 rounded-md px-3 text-sm transition-colors duration-150",
-                    active ? "bg-elevated text-fg" : "text-muted hover:bg-elevated hover:text-fg",
+                    active
+                      ? "bg-elevated text-fg shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--color-accent)_35%,transparent)]"
+                      : "text-muted hover:bg-elevated hover:text-fg",
                   )}
                 >
-                  <Icon className="size-4" />
+                  <Icon className={cn("size-4", active && "text-accent")} />
                   {item.label}
                 </Link>
               );
@@ -135,7 +136,7 @@ export function StudioShell() {
               to={item.to}
               className={cn(
                 "flex h-14 flex-col items-center justify-center gap-1 text-[10px] uppercase tracking-wider",
-                active ? "text-fg" : "text-subtle",
+                active ? "text-accent" : "text-subtle",
               )}
             >
               <Icon className="size-4" />
