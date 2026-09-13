@@ -4,15 +4,15 @@
  * Capacitor needs a concrete dist/index.html; it cannot run the Nitro SSR server.
  */
 
-import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const ROOT = process.cwd();
 const DIST = join(ROOT, "dist");
+const TEMP = join(ROOT, ".capacitor-web-stage");
 const CANDIDATES = [
   join(ROOT, ".vercel", "output", "static"),
   join(ROOT, "dist", "client"),
-  join(ROOT, "dist"),
 ];
 
 function fail(msg) {
@@ -23,9 +23,14 @@ function fail(msg) {
 const source = CANDIDATES.find((dir) => existsSync(dir));
 if (!source) fail("No static client output found after the Capacitor build.");
 
+if (existsSync(TEMP)) rmSync(TEMP, { recursive: true, force: true });
+mkdirSync(TEMP, { recursive: true });
+cpSync(source, TEMP, { recursive: true });
+
 if (existsSync(DIST)) rmSync(DIST, { recursive: true, force: true });
 mkdirSync(DIST, { recursive: true });
-cpSync(source, DIST, { recursive: true });
+cpSync(TEMP, DIST, { recursive: true });
+rmSync(TEMP, { recursive: true, force: true });
 
 const indexPath = join(DIST, "index.html");
 const shellPath = join(DIST, "_shell.html");
