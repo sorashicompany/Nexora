@@ -1,5 +1,6 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
+import { Logo } from "@/components/nexora/logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { GROK_PROVIDERS, authClient, authEnabled, signIn } from "@/lib/auth/client";
@@ -50,27 +51,36 @@ function Login() {
 
   return (
     <main className="grid min-h-dvh bg-bg lg:grid-cols-2">
-      <section className="relative hidden flex-col justify-between border-r border-border p-12 lg:flex">
-        <p className="font-display text-2xl tracking-tight">Nexora</p>
-        <div>
+      <section className="relative hidden flex-col justify-between overflow-hidden border-r border-border p-12 lg:flex">
+        <div
+          className="pointer-events-none absolute inset-0 opacity-60"
+          style={{
+            background:
+              "radial-gradient(ellipse 80% 60% at 30% 40%, color-mix(in oklab, #6b5cf5 28%, transparent), transparent 70%), radial-gradient(ellipse 50% 40% at 80% 80%, color-mix(in oklab, #4a6cf7 18%, transparent), transparent 65%)",
+          }}
+        />
+        <Logo size="md" to={false} className="relative z-10" />
+        <div className="relative z-10">
           <h1 className="max-w-lg font-display text-5xl leading-[1.05] tracking-tight text-balance">
             Музыка первая.
             <br />
             Люди рядом.
             <br />
-            Коллаб всегда.
+            <span className="brand-gradient-text">Коллаб всегда.</span>
           </h1>
           <p className="mt-6 max-w-md text-muted">
             Сеть для исполнителей и битмейкеров: публикуйте демки, находите биты, предлагайте
             коллаборации и лицензируйте работу — без лишнего шума.
           </p>
         </div>
-        <p className="text-sm text-subtle">Discover → people → collab → license.</p>
+        <p className="relative z-10 text-sm text-subtle">Discover → people → collab → license.</p>
       </section>
       <section className="flex items-center justify-center p-6 sm:p-12">
         <div className="w-full max-w-sm">
-          <p className="font-display text-2xl tracking-tight lg:hidden">Nexora</p>
-          <h2 className="mt-2 font-display text-3xl tracking-tight">
+          <div className="lg:hidden">
+            <Logo size="sm" to={false} />
+          </div>
+          <h2 className="mt-4 font-display text-3xl tracking-tight lg:mt-0">
             {mode === "in" ? "Вход в студию" : "Создать аккаунт"}
           </h2>
           <p className="mt-2 text-sm text-muted">
