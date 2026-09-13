@@ -14,7 +14,6 @@ import { isMigrationFile } from "./scripts/migration-plan.mjs";
 
 const isCapacitorBuild = process.env.NEXORA_CAPACITOR === "1";
 
-/** The files `src/lib/db.ts` globs — same directory, same non-recursive scope. */
 function hasGlobbedMigrations(root: string): boolean {
   try {
     return readdirSync(join(root, "migrations")).some(isMigrationFile);
@@ -115,16 +114,20 @@ export default defineConfig(({ command, isPreview }) => ({
     grokPwaPlugin(),
     tailwindcss(),
     tanstackStart({
-      // Capacitor cannot run the Nitro SSR server. Build a real Start SPA shell
-      // instead of guessing a client entry point from the emitted JS files.
-      ...(isCapacitorBuild ? { spa: { enabled: true } } : {}),
+      ...(isCapacitorBuild
+        ? { spa: { enabled: true, prerender: { enabled: false } } }
+        : {}),
     }),
     ...(command === "build" || isPreview
       ? [
-          nitro({
-            preset: "vercel",
-            serverDir: "./server",
-          }),
+          ...(isCapacitorBuild
+            ? []
+            : [
+                nitro({
+                  preset: "vercel",
+                  serverDir: "./server",
+                }),
+              ]),
         ]
       : []),
     viteReact(),
