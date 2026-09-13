@@ -1,16 +1,16 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 /**
- * Capacitor config for Nexora.
+ * Nexora is an SSR app (TanStack Start). A pure offline WebView cannot run
+ * server functions / auth / DB — that is the root cause of the black screen.
  *
- * Because the app is SSR (TanStack Start + Nitro), a pure offline static
- * shell has limited functionality. Two modes are supported:
- *
- * 1. Local assets (default) — uses the staged `dist/` folder.
- * 2. Live server — set CAPACITOR_SERVER_URL to load the deployed site
- *    inside the WebView (recommended for full features).
+ * Production APK MUST load the deployed site via CAPACITOR_SERVER_URL
+ * (e.g. https://your-app.vercel.app). Local `webDir` is only a fallback shell.
  */
-const serverUrl = process.env.CAPACITOR_SERVER_URL?.trim();
+const serverUrl =
+  process.env.CAPACITOR_SERVER_URL?.trim() ||
+  process.env.VITE_APP_URL?.trim() ||
+  '';
 
 const config: CapacitorConfig = {
   appId: 'com.nexora.app',
@@ -19,12 +19,25 @@ const config: CapacitorConfig = {
   bundledWebRuntime: false,
   server: serverUrl
     ? {
-        url: serverUrl,
+        url: serverUrl.replace(/\/$/, ''),
         cleartext: serverUrl.startsWith('http://'),
+        allowNavigation: [
+          serverUrl.replace(/\/$/, ''),
+          'https://*.vercel.app',
+          'https://*.supabase.co',
+          'https://*.workers.dev',
+        ],
       }
     : undefined,
   android: {
     allowMixedContent: true,
+    backgroundColor: '#06081a',
+  },
+  plugins: {
+    SplashScreen: {
+      backgroundColor: '#06081a',
+      launchShowDuration: 0,
+    },
   },
 };
 
