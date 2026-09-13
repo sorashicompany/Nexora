@@ -6,17 +6,22 @@
   --font-display: "Syne", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
-  --color-bg: #0a0a0b;
-  --color-surface: #121214;
-  --color-elevated: #1a1a1e;
-  --color-fg: #f4f4f5;
-  --color-muted: #a1a1aa;
-  --color-subtle: #71717a;
-  --color-border: #26262b;
-  --color-accent: #c8ccd4;
-  --color-accent-fg: #0a0a0b;
-  --color-danger: #c45c4a;
-  --color-ok: #8aa58b;
+  /* Deep navy canvas matching brand mark background */
+  --color-bg: #06081a;
+  --color-surface: #0c0f24;
+  --color-elevated: #141833;
+  --color-fg: #f0f1f8;
+  --color-muted: #9aa0bf;
+  --color-subtle: #6b7194;
+  --color-border: #1e2444;
+
+  /* Brand gradient accents from logo */
+  --color-accent: #6b5cf5;
+  --color-accent-2: #4a6cf7;
+  --color-accent-3: #9a5cff;
+  --color-accent-fg: #ffffff;
+  --color-danger: #e06b5c;
+  --color-ok: #5ecf9a;
 
   --radius-xs: 4px;
   --radius-sm: 8px;
@@ -24,7 +29,8 @@
   --radius-lg: 16px;
   --radius-xl: 24px;
 
-  --shadow-panel: 0 18px 40px -28px rgb(0 0 0 / 0.7);
+  --shadow-panel: 0 18px 40px -28px rgb(0 0 0 / 0.75);
+  --shadow-glow: 0 0 40px -8px color-mix(in oklab, var(--color-accent) 45%, transparent);
 }
 
 @layer base {
@@ -59,7 +65,7 @@
   }
 
   ::selection {
-    background: color-mix(in oklab, var(--color-accent) 35%, transparent);
+    background: color-mix(in oklab, var(--color-accent) 40%, transparent);
     color: var(--color-fg);
   }
 
@@ -67,6 +73,18 @@
     color: inherit;
     text-decoration: none;
   }
+}
+
+/* Soft brand glow utility */
+.brand-glow {
+  box-shadow: var(--shadow-glow);
+}
+
+.brand-gradient-text {
+  background: linear-gradient(135deg, #4a6cf7 0%, #6b5cf5 50%, #9a5cff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 @keyframes nexora-in {
