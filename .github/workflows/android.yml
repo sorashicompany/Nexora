@@ -31,45 +31,19 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Install Capacitor
-        run: npm install --no-save @capacitor/core @capacitor/cli @capacitor/android --no-audit --no-fund
-
       - name: Build web app
         run: npm run build:dev
 
       - name: Stage web assets for Capacitor
+        run: node scripts/stage-capacitor.mjs
+
+      - name: Add Android platform (if missing)
         run: |
-          set -e
-          rm -rf dist
-          index_file="$(find . -path './node_modules' -prune -o -path './android' -prune -o -name index.html -print -quit)"
-          if [ -z "$index_file" ]; then
-            echo 'No index.html found after build'
-            find . -maxdepth 4 -type f | head -200
-            exit 1
+          if [ ! -d android ]; then
+            npx cap add android
+          else
+            echo "android/ already present"
           fi
-          web_root="$(dirname "$index_file")"
-          echo "Using web assets from: $web_root"
-          mkdir -p dist
-          cp -a "$web_root"/. dist/
-          test -f dist/index.html
-
-      - name: Create Capacitor config
-        run: |
-          cat > capacitor.config.ts <<'EOF'
-          import type { CapacitorConfig } from '@capacitor/cli';
-
-          const config: CapacitorConfig = {
-            appId: 'com.nexora.app',
-            appName: 'Nexora',
-            webDir: 'dist',
-            bundledWebRuntime: false,
-          };
-
-          export default config;
-          EOF
-
-      - name: Add Android platform
-        run: npx cap add android
 
       - name: Sync web app to Android
         run: npx cap sync android
