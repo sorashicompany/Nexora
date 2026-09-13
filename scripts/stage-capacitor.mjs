@@ -4,7 +4,7 @@
  * Capacitor needs a concrete dist/index.html; it cannot run the Nitro SSR server.
  */
 
-import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 
 const ROOT = process.cwd();
@@ -35,33 +35,16 @@ rmSync(TEMP, { recursive: true, force: true });
 const indexPath = join(DIST, "index.html");
 const shellPath = join(DIST, "_shell.html");
 
+// TanStack Start's SPA client hydrates the complete document. The generated
+// _shell.html is therefore the correct Capacitor entry; a hand-written
+// <div id="root"> shell is not compatible with hydrateRoot(document, ...).
 if (!existsSync(indexPath) && existsSync(shellPath)) {
   cpSync(shellPath, indexPath);
 }
 
-// With prerender disabled there is intentionally no _shell.html. In that case
-// use the real generated client entry, never an arbitrary/largest JS file.
 if (!existsSync(indexPath)) {
-  const assetsDir = join(DIST, "assets");
-  if (!existsSync(assetsDir)) fail("No assets directory found for the Capacitor SPA.");
-
-  const files = readdirSync(assetsDir);
-  const entry = files.find((name) => /^index-[^/]+\.js$/.test(name));
-  if (!entry) fail("Could not find the generated TanStack client entry (assets/index-*.js).");
-
-  const css = files
-    .filter((name) => name.endsWith(".css"))
-    .map((name) => `    <link rel="stylesheet" href="assets/${name}">`)
-    .join("\n");
-
-  writeFileSync(
-    indexPath,
-    `<!doctype html>\n<html lang="ru">\n<head>\n  <meta charset="utf-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n  <meta name="theme-color" content="#06081a">\n  <title>Nexora</title>\n${css}\n</head>\n<body class="bg-bg font-sans text-fg">\n  <div id="root"></div>\n  <script type="module" src="assets/${entry}"></script>\n</body>\n</html>\n`,
-    "utf8",
-  );
+  fail("TanStack Start did not generate index.html or _shell.html. Refusing to ship a blank-screen APK.");
 }
-
-if (!existsSync(indexPath)) fail("No index.html available after staging.");
 
 console.log(`[stage-capacitor] Client source: ${source}`);
 console.log(`[stage-capacitor] Capacitor entry: ${indexPath}`);
