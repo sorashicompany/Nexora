@@ -103,6 +103,19 @@ const LOCAL_DEV_ORIGINS: string[] = [
   "http://127.0.0.1:8080",
   "http://[::1]:8080",
 ];
+// Capacitor Android/iOS WebView origins (when not using server.url, or hybrid).
+const CAPACITOR_ORIGINS: string[] = [
+  "capacitor://localhost",
+  "http://localhost",
+  "https://localhost",
+  "ionic://localhost",
+];
+// Production site used by the APK WebView (server.url).
+const LIVE_APP_ORIGINS: string[] = [
+  "https://nexora-sepia-alpha.vercel.app",
+  ...(env("CAPACITOR_SERVER_URL") ? [env("CAPACITOR_SERVER_URL")!.replace(/\/$/, "")] : []),
+  ...(env("VITE_APP_URL") ? [env("VITE_APP_URL")!.replace(/\/$/, "")] : []),
+];
 const baseURL = explicitBaseURL ?? {
   // Include loopback hosts so dynamic baseURL resolves for local email/password
   // (not only the preview wildcard).
@@ -115,15 +128,18 @@ const baseURL = explicitBaseURL ?? {
 
 // Origins Better Auth accepts on credentialed POSTs (sign-up/sign-in, etc.).
 // Missing entries here surface as FORBIDDEN "Invalid origin".
-const trustedOrigins: string[] = explicitBaseURL
-  ? [explicitBaseURL, ...LOCAL_DEV_ORIGINS]
-  : [
-      // Host wildcards (matched against Origin's host)
-      ...previewAllowedHosts,
-      // Full-origin wildcards (matched against Origin)
-      ...previewAllowedHosts.flatMap((host) => [`https://${host}`, `http://${host}`]),
-      ...LOCAL_DEV_ORIGINS,
-    ];
+const trustedOrigins: string[] = [
+  ...(explicitBaseURL ? [explicitBaseURL] : []),
+  ...LIVE_APP_ORIGINS,
+  ...LOCAL_DEV_ORIGINS,
+  ...CAPACITOR_ORIGINS,
+  ...(explicitBaseURL
+    ? []
+    : [
+        ...previewAllowedHosts,
+        ...previewAllowedHosts.flatMap((host) => [`https://${host}`, `http://${host}`]),
+      ]),
+].filter((v, i, a) => Boolean(v) && a.indexOf(v) === i);
 
 const databaseUrl = env("DATABASE_URL");
 
@@ -179,7 +195,7 @@ export const auth = betterAuth({
   secret: env("BETTER_AUTH_SECRET") ?? previewAuthSecret(),
   database,
 
-  // CSRF / origin check for credentialed auth POSTs (email sign-up/sign-in, …).
+  // CSRF / origin check for credentialed auth POSTs (sign-up/sign-in, …).
   // See `trustedOrigins` construction above — must cover live preview hosts AND
   // local loopback variants, or clients get "Invalid origin".
   trustedOrigins,
