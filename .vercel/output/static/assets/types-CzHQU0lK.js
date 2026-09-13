@@ -1,0 +1,1 @@
+var e=[`hip-hop`,`trap`,`rnb`,`lo-fi`,`drill`,`house`,`pop`,`afrobeat`,`phonk`,`ambient`],t=[`C`,`D`,`E`,`F`,`G`,`A`,`Am`,`Dm`,`Em`,`Fm`,`Gm`,`Cm`,`Bb`,`F#m`];export{t as n,e as t};

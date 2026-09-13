@@ -1,0 +1,1 @@
+import{t as e}from"./jsx-runtime-0vZSBttN.js";import{n as t}from"./index-CtT2I7ua.js";import{t as n}from"./item-detail-C5T72JcD.js";var r=e();function i(){let{id:e}=t.useParams();return(0,r.jsx)(n,{kind:`track`,id:e})}export{i as component};
