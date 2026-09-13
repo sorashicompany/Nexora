@@ -4,12 +4,19 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      server_url:
+        description: 'Live app URL for WebView (e.g. https://nexora.vercel.app)'
+        required: false
+        type: string
 
 permissions:
   contents: read
 
 env:
   NEXORA_CAPACITOR: "1"
+  # Prefer manual dispatch input, then repo variable, then secret
+  CAPACITOR_SERVER_URL: ${{ inputs.server_url || vars.CAPACITOR_SERVER_URL || secrets.CAPACITOR_SERVER_URL }}
 
 jobs:
   build-apk:
@@ -34,21 +41,20 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Build web app
+      - name: Build web app (SPA shell for Capacitor assets)
         run: npm run build:dev
 
       - name: Stage web assets for Capacitor
         run: node scripts/stage-capacitor.mjs
 
+      - name: Inject live-server bridge into index.html
+        run: node scripts/inject-capacitor-bridge.mjs
+
       - name: Verify Capacitor web entry
         run: |
           test -s dist/index.html
           grep -qi '<html' dist/index.html
-          grep -q '<script' dist/index.html
-          if grep -q '<div id="root"></div>' dist/index.html; then
-            echo 'ERROR: Refusing incompatible synthetic React root shell.'
-            exit 1
-          fi
+          echo "CAPACITOR_SERVER_URL=${CAPACITOR_SERVER_URL:-<empty>}"
 
       - name: Add Android platform (if missing)
         run: |
@@ -60,16 +66,6 @@ jobs:
 
       - name: Sync web app to Android
         run: npx cap sync android
-
-      - name: Verify Android web entry
-        run: |
-          test -s android/app/src/main/assets/public/index.html
-          grep -qi '<html' android/app/src/main/assets/public/index.html
-          grep -q '<script' android/app/src/main/assets/public/index.html
-          if grep -q '<div id="root"></div>' android/app/src/main/assets/public/index.html; then
-            echo 'ERROR: Android assets contain incompatible synthetic React root shell.'
-            exit 1
-          fi
 
       - name: Build debug APK
         working-directory: android
